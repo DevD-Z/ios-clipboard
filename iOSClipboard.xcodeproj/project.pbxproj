@@ -60,7 +60,7 @@
 		F018 = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ClipboardKeyboard.entitlements; sourceTree = "<group>"; };
 		F019 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardUITests.swift; sourceTree = "<group>"; };
 		F020 = {isa = PBXFileReference; lastKnownFileType = text.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
-		F021 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleDriveSync.swift; sourceTree = "<group>"; };
+		F021 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App/GoogleDriveSync.swift; sourceTree = "<group>"; };
 		P001 = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Clipboard.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		P002 = {isa = PBXFileReference; explicitFileType = wrapper.app-extension; includeInIndex = 0; path = ClipboardKeyboard.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		P003 = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ClipboardStoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
