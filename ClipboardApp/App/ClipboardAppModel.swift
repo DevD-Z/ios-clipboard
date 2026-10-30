@@ -99,6 +99,35 @@ final class ClipboardAppModel: ObservableObject {
         }
     }
 
+    /// Exports a snapshot of the actual SQLite-backed store, not a potentially stale UI list.
+    func exportBackup(completion: @escaping (Result<Data, Error>) -> Void) {
+        guard let store else {
+            completion(.failure(ClipboardStoreError.sharedContainerUnavailable))
+            return
+        }
+        ioQueue.async {
+            let result = Result { try ClipboardBackupArchive.encode(items: store.load()) }
+            DispatchQueue.main.async { completion(result) }
+        }
+    }
+
+    func importBackup(data: Data, completion: @escaping (Result<Int, Error>) -> Void) {
+        guard let store else {
+            completion(.failure(ClipboardStoreError.sharedContainerUnavailable))
+            return
+        }
+        ioQueue.async { [weak self] in
+            let result = Result {
+                let items = try ClipboardBackupArchive.decode(data)
+                return try store.mergeBackupItems(items)
+            }
+            DispatchQueue.main.async {
+                if case .success = result { self?.reload() }
+                completion(result)
+            }
+        }
+    }
+
     func add(_ text: String, completion: @escaping (Bool) -> Void = { _ in }) {
         perform({ try $0.add(text: text) }, completion: completion)
     }

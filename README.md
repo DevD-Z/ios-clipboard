@@ -30,6 +30,7 @@
 - **Favorites.** Star the snippets you use most. Both the app and the keyboard can show only your favorites.
 - **Search.** Find a snippet by any word it contains.
 - **Works without Full Access.** The keyboard can always read and insert your snippets. Full Access only adds saving, favoriting, and deleting from the keyboard itself.
+- **Local-first with optional Google Drive / Files backups.** No iCloud account required for local storage; export a JSON backup to iOS Files (including Google Drive when enabled) and merge it back later. This is manual backup and restore, not Google account sync.
 - **Optional iCloud sync.** Off by default. When you turn it on, snippets sync through your private iCloud database to your devices signed in to the same Apple Account.
 - **Native and accessible.** Built from system components, with support for light and dark mode, Dynamic Type, VoiceOver labels, iPhone and iPad, with an English-only app interface.
 - **No account, analytics, or ads.**
@@ -64,6 +65,24 @@ The unsigned Codemagic build is for compilation/testing only and **cannot enable
 See [iCloud setup and signed Codemagic builds](docs/ICLOUD_SETUP.md) for Apple Developer
 capabilities, provisioning profiles for the app and keyboard extension, and schema deployment.
 
+## Google Drive backup (no iCloud account required)
+
+Clipboard stores snippets locally by default. Open **Settings > Backup & Restore** to
+**Export backup to Files / Google Drive** or **Import backup from Files / Google Drive**.
+Install and sign into the Google Drive iOS app, and enable Google Drive in the iOS
+**Files > Browse > ... > Edit > Locations** screen if it is not shown.
+
+You can also select **On My iPhone** or another supported Files location. Exported
+JSON contains **unencrypted text**; do not back up secrets or passwords to a shared
+folder. Import merges by original snippet ID and never replaces existing snippets.
+
+**Google One is a storage subscription, not an independent sync API**. Google Drive is
+one of the storage locations where your Google account can keep backups. This
+implementation uses the system Files picker and does not request Google OAuth
+permissions; **it does not automatically sync** edits between phones.
+
+See [local storage and Google Drive backup guide](docs/GOOGLE_DRIVE_BACKUP.md).
+
 ## Getting started
 
 1. **Open Clipboard** and go through the short introduction.
@@ -85,7 +104,7 @@ A keyboard can see what you type, so this section describes exactly what the cod
 | --- | --- |
 | **What is stored** | The text of each snippet, when it was created, and whether it is a favorite. The app also stores two preferences: whether you finished the introduction and whether iCloud sync is on. |
 | **Where it is stored** | A SwiftData (SQLite) database in an App Group container that only the Clipboard app and its keyboard can access. The database is excluded from device backups and uses iOS file protection. |
-| **What leaves the device** | Nothing, unless you turn on **Sync with iCloud**. The code makes no network requests of its own. Sync uses Apple's CloudKit and stores snippets in your *private* iCloud database, which the developer cannot read. |
+| **What leaves the device** | Nothing, unless you turn on **Sync with iCloud** or **manually export a backup file**. The app makes no Google API requests of its own. Sync uses Apple's CloudKit and stores snippets in your *private* iCloud database, which the developer cannot read. |
 | **What the keyboard reads** | Only your saved snippets. It does not read the text around the cursor. It only inserts the snippet you tap. |
 | **Your clipboard** | Read only when you tap **Save from clipboard**, never in the background. iOS may ask for permission to paste. |
 | **Full Access** | Optional. Without it, the keyboard opens the database read-only. With it, the keyboard can also save, favorite, and delete snippets. iOS describes Full Access as also allowing network access, but the keyboard contains no networking code and has no iCloud entitlement. |
@@ -93,7 +112,7 @@ A keyboard can see what you type, so this section describes exactly what the cod
 
 Things to be aware of:
 
-- **Snippets are not backed up while sync is off.** They are excluded from device backups, so deleting the app or moving to a new device without iCloud sync means losing them.
+- **Snippets are not backed up automatically while sync is off.** They are excluded from device backups, so export a backup through Settings before deleting the app or moving to a new device.
 - **Turning sync off stops future syncing but does not delete copies already in iCloud.**
 - **With sync on, the keyboard never talks to iCloud directly.** Changes made from the keyboard reach your other devices the next time the Clipboard app runs.
 

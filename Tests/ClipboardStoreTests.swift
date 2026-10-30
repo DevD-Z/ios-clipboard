@@ -201,6 +201,36 @@ final class ClipboardStoreTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: directory.appendingPathComponent(AppGroup.storeFilename).path))
     }
 
+    func testMergeBackupPreservesLocalEntriesAndOriginalMetadata() throws {
+        let writer = store()
+        let existing = try writer.add(text: "Keep this local snippet")
+        let imported = ClipboardItem(
+            id: UUID(),
+            text: "Restored from Google Drive backup",
+            createdAt: Date(timeIntervalSinceReferenceDate: 1234.567),
+            isFavorite: true
+        )
+        XCTAssertEqual(try writer.mergeBackupItems([imported]), 1)
+        XCTAssertEqual(try writer.mergeBackupItems([imported]), 0, "Repeated imports must not duplicate items")
+        XCTAssertEqual(Set(try writer.load()), Set([existing, imported]))
+
+        let attemptedOverwrite = ClipboardItem(
+            id: existing.id, text: "MUST NOT REPLACE", createdAt: existing.createdAt, isFavorite: true
+        )
+        XCTAssertEqual(try writer.mergeBackupItems([attemptedOverwrite]), 0)
+        XCTAssertTrue(try writer.load().contains(existing), "Backup import must not overwrite local values")
+    }
+
+    func testMergeBackupRejectsDuplicateIDsAndInvalidTextWithoutDeletingData() throws {
+        let writer = store()
+        let existing = try writer.add(text: "protected")
+        let imported = ClipboardItem(text: "one")
+        let duplicate = ClipboardItem(id: imported.id, text: "two")
+        XCTAssertThrowsError(try writer.mergeBackupItems([imported, duplicate]))
+        XCTAssertThrowsError(try writer.mergeBackupItems([ClipboardItem(text: "  ")]))
+        XCTAssertEqual(try writer.load(), [existing])
+    }
+
     private func directorySnapshot() throws -> [String] {
         try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
             .map(\.lastPathComponent)

@@ -1,12 +1,45 @@
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @ObservedObject var model: ClipboardAppModel
     @Environment(\.dismiss) private var dismiss
+    @State private var backupDocument: ClipboardBackupDocument?
+    @State private var showingBackupExporter = false
+    @State private var showingBackupImporter = false
+    @State private var isPreparingBackup = false
+    @State private var isImportingBackup = false
+    @State private var backupMessage: String?
+
     var body: some View {
         NavigationStack {
             List {
+                Section("Storage") {
+                    Label("Saved locally on this device", systemImage: "iphone")
+                    Text("iCloud is optional. Your snippets stay on this device unless you enable iCloud Sync or export a backup.")
+                }
+                Section {
+                    Button {
+                        exportBackup()
+                    } label: {
+                        Label("Export backup to Files / Google Drive", systemImage: "square.and.arrow.up")
+                    }
+                    .disabled(isPreparingBackup || isImportingBackup)
+                    .accessibilityIdentifier("settingsExportBackupButton")
+
+                    Button {
+                        showingBackupImporter = true
+                    } label: {
+                        Label("Import backup from Files / Google Drive", systemImage: "square.and.arrow.down")
+                    }
+                    .disabled(isPreparingBackup || isImportingBackup)
+                    .accessibilityIdentifier("settingsImportBackupButton")
+                } header: {
+                    Text("Backup & Restore")
+                } footer: {
+                    Text("Manual backup only, not automatic Google sync. Install Google Drive, sign in, and enable it in the iOS Files app to save or open a backup there. Imported snippets are merged with existing snippets. Backup files contain unencrypted text.")
+                }
                 Section {
                     Toggle("Sync with iCloud", isOn: Binding(
                         get: { model.isCloudSyncEnabled },
@@ -15,7 +48,7 @@ struct SettingsView: View {
                     .disabled(model.isChangingCloudSync)
                     .accessibilityIdentifier("settingsICloudSyncToggle")
                 } header: {
-                    Text("iCloud")
+                    Text("iCloud (Optional)")
                 } footer: {
                     Text("Optional. Sync saved snippets across your devices signed in to the same Apple Account. Turning this off keeps snippets on this device and stops future syncing; copies already in iCloud remain there.")
                 }
@@ -30,12 +63,30 @@ struct SettingsView: View {
                     .accessibilityIdentifier("settingsOpenSystemSettingsButton")
                 }
                 Section("Privacy") {
-                    Text("Snippets stay on this device unless you turn on iCloud sync.")
-                    Text("Clipboard has no app account, analytics, or advertising. If iCloud sync is on, saved snippets are stored in your private iCloud database.")
+                    Text("Snippets stay on this device unless you turn on iCloud sync or manually export a backup.")
+                    Text("Clipboard has no app account, analytics, or advertising. iCloud sync uses your private iCloud database. Exported backup files are unencrypted, so only save them in a location you trust.")
                 }
             }
             .navigationTitle("Settings")
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Done") { dismiss() }.accessibilityIdentifier("settingsDoneButton") } }
+            .fileExporter(
+                isPresented: $showingBackupExporter,
+                document: backupDocument,
+                contentType: .json,
+                defaultFilename: "Clipboard-Backup"
+            ) { result in
+                if case let .failure(error) = result { backupMessage = error.localizedDescription }
+                backupDocument = nil
+            }
+            .fileImporter(isPresented: $showingBackupImporter, allowedContentTypes: [.json]) { result in
+                importBackup(result)
+            }
+            .alert("Backup & Restore", isPresented: Binding(
+                get: { backupMessage != nil },
+                set: { if !$0 { backupMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) { backupMessage = nil }
+            } message: { Text(backupMessage ?? "") }
             .alert("iCloud Sync", isPresented: Binding(
                 get: { model.cloudSyncErrorMessage != nil },
                 set: { if !$0 { model.cloudSyncErrorMessage = nil } }
@@ -43,5 +94,121 @@ struct SettingsView: View {
                 Button("OK", role: .cancel) { model.cloudSyncErrorMessage = nil }
             } message: { Text(model.cloudSyncErrorMessage ?? "") }
         }
+    }
+
+    private func exportBackup() {
+        guard !isPreparingBackup else { return }
+        isPreparingBackup = true
+        model.exportBackup { result in
+            isPreparingBackup = false
+            switch result {
+            case let .success(data):
+                backupDocument = ClipboardBackupDocument(data: data)
+                showingBackupExporter = true
+            case let .failure(error):
+                backupMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func importBackup(_ result: Result<URL, Error>) {
+        guard !isImportingBackup else { return }
+        switch result {
+        case let .failure(error):
+            backupMessage = error.localizedDescription
+        case let .success(url):
+            do {
+                let granted = url.startAccessingSecurityScopedResource()
+                defer { if granted { url.stopAccessingSecurityScopedResource() } }
+                let fileSize = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+                guard fileSize <= ClipboardBackupArchive.maximumBytes else {
+                    throw ClipboardBackupError.fileTooLarge
+                }
+                let data = try Data(contentsOf: url)
+                guard data.count <= ClipboardBackupArchive.maximumBytes else {
+                    throw ClipboardBackupError.fileTooLarge
+                }
+                isImportingBackup = true
+                model.importBackup(data: data) { result in
+                    isImportingBackup = false
+                    switch result {
+                    case let .success(added):
+                        backupMessage = "Import complete. Added \(added) snippets without replacing existing items."
+                    case let .failure(error):
+                        backupMessage = error.localizedDescription
+                    }
+                }
+            } catch {
+                backupMessage = error.localizedDescription
+            }
+        }
+    }
+}
+
+/// A user-controlled JSON backup, intentionally independent of CloudKit and Google OAuth.
+struct ClipboardBackupArchive: Codable {
+    static let maximumBytes = 20 * 1024 * 1024
+    static let maximumItems = 10_000
+
+    let formatVersion: Int
+    let exportedAt: Date
+    let items: [ClipboardItem]
+
+    static func encode(items: [ClipboardItem]) throws -> Data {
+        let archive = ClipboardBackupArchive(formatVersion: 1, exportedAt: .now, items: items)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try encoder.encode(archive)
+        guard data.count <= maximumBytes else { throw ClipboardBackupError.fileTooLarge }
+        return data
+    }
+
+    static func decode(_ data: Data) throws -> [ClipboardItem] {
+        guard data.count <= maximumBytes else { throw ClipboardBackupError.fileTooLarge }
+        guard let archive = try? JSONDecoder().decode(ClipboardBackupArchive.self, from: data),
+              archive.formatVersion == 1,
+              archive.items.count <= maximumItems else {
+            throw ClipboardBackupError.invalidFile
+        }
+        let items = archive.items
+        guard Set(items.map(\.id)).count == items.count,
+              items.allSatisfy({ !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) else {
+            throw ClipboardBackupError.invalidFile
+        }
+        return items
+    }
+}
+
+enum ClipboardBackupError: LocalizedError {
+    case invalidFile
+    case fileTooLarge
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidFile: return "Invalid Clipboard backup file or unsupported version."
+        case .fileTooLarge: return "This backup exceeds the 20 MB limit."
+        }
+    }
+}
+
+struct ClipboardBackupDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.json] }
+    static var writableContentTypes: [UTType] { [.json] }
+
+    var data: Data
+
+    init(data: Data) {
+        self.data = data
+    }
+
+    init(configuration: ReadConfiguration) throws {
+        guard let contents = configuration.file.regularFileContents else {
+            throw ClipboardBackupError.invalidFile
+        }
+        data = contents
+    }
+
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        FileWrapper(regularFileWithContents: data)
     }
 }

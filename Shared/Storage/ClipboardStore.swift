@@ -173,6 +173,25 @@ final class ClipboardStore: @unchecked Sendable {
         }
     }
 
+    /// Non-destructively merge a backup. Existing UUIDs are kept unchanged, including edits.
+    /// Import in one transaction and notify the keyboard only after the save succeeds.
+    @discardableResult
+    func mergeBackupItems(_ items: [ClipboardItem]) throws -> Int {
+        guard Set(items.map(\.id)).count == items.count,
+              items.allSatisfy({ !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) else {
+            throw ClipboardStoreError.corruptData
+        }
+        return try mutate { context, current in
+            var existingIDs = Set(current.map(\.id))
+            var imported = 0
+            for item in items where existingIDs.insert(item.id).inserted {
+                context.insert(StoredClipboardItem(item: item))
+                imported += 1
+            }
+            return imported
+        }
+    }
+
     func delete(id: UUID) throws {
         _ = try mutate { context, current in
             guard let model = current.first(where: { $0.id == id }) else { throw ClipboardStoreError.itemNotFound }
