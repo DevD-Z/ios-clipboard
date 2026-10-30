@@ -251,7 +251,7 @@ final class KeyboardViewController: UIInputViewController {
     }
 
     private func updateSnapshot() {
-        switch Section(rawValue: sectionControl.selectedSegmentIndex) ?? .recent {
+        switch Section(rawValue: sectionControl.selectedSegmentIndex) ?? .saved {
         case .saved: visibleItems = allItems
         case .favorites: visibleItems = allItems.filter(\.isFavorite)
         }
