@@ -18,8 +18,9 @@ final class ClipboardUITests: XCTestCase {
         UIPasteboard.general.string = clipboardText
         let saveFromClipboard = app.buttons["appSaveFromClipboardControl"]
         XCTAssertTrue(saveFromClipboard.waitForExistence(timeout: 3), app.debugDescription)
-        XCTAssertEqual(saveFromClipboard.label, "Save from clipboard")
-        tapSavingClipboard(saveFromClipboard)
+        XCTAssertEqual(saveFromClipboard.label, "Paste and save copied text")
+        XCTAssertTrue(saveFromClipboard.isEnabled, "Paste is only enabled when text is copied.")
+        saveFromClipboard.tap()
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", clipboardText)).firstMatch.waitForExistence(timeout: 5), app.debugDescription)
 
         app.buttons["appNewSnippetControl"].tap()
@@ -45,7 +46,7 @@ final class ClipboardUITests: XCTestCase {
 
         let saveFromClipboard = app.buttons["appSaveFromClipboardControl"]
         XCTAssertTrue(saveFromClipboard.waitForExistence(timeout: 3), app.debugDescription)
-        XCTAssertEqual(saveFromClipboard.label, "Save from clipboard")
+        XCTAssertEqual(saveFromClipboard.label, "Paste and save copied text")
         XCTAssertEqual(app.buttons["appNewSnippetControl"].label, "New Snippet")
         XCTAssertEqual(app.searchFields.firstMatch.placeholderValue, "Search snippets")
     }

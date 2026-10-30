@@ -25,7 +25,7 @@
 
 ## Features
 
-- **Save text once, reuse it everywhere.** Write snippets in the app, or tap **Save from clipboard** to keep what you just copied.
+- **Save text once, reuse it everywhere.** Write snippets using **+**, or use the system **Paste** button to save the text you just copied. Paste is disabled when there is no supported text.
 - **Insert with one tap.** The Clipboard keyboard lists your snippets in any app that accepts text. Tap one to insert its full text at the cursor.
 - **Favorites.** Star the snippets you use most. Both the app and the keyboard can show only your favorites.
 - **Search.** Find a snippet by any word it contains.
@@ -102,7 +102,7 @@ See [local storage and Google Drive backup guide](docs/GOOGLE_DRIVE_BACKUP.md).
 ## Getting started
 
 1. **Open Clipboard** and go through the short introduction.
-2. **Add a snippet.** Tap **+** to write one, or copy some text and tap **Save from clipboard**.
+2. **Add a snippet.** Tap **+** to write one, or copy some text in another app and tap **Paste** in Clipboard. The Paste button saves that text.
 3. **Enable the keyboard.** Go to **Settings › General › Keyboard › Keyboards › Add New Keyboard** and choose **Clipboard**.
 4. **Switch to it.** In any text field, tap or hold the **globe** key and choose **Clipboard**.
 5. **Tap a snippet** to insert it. Use the **Recent** and **Favorites** tabs to switch lists.
@@ -122,7 +122,7 @@ A keyboard can see what you type, so this section describes exactly what the cod
 | **Where it is stored** | A SwiftData (SQLite) database in an App Group container that only the Clipboard app and its keyboard can access. The database is excluded from device backups and uses iOS file protection. |
 | **What leaves the device** | Nothing unless you enable iCloud Sync, explicitly enable Google Drive Auto Sync by signing in, or manually export a backup. Google sync uploads saved snippets to the account's private Google Drive appDataFolder; iCloud uses CloudKit. The one-hour recent-copy preview is not uploaded without saving it as a snippet. |
 | **What the keyboard reads** | Only your saved snippets. It does not read the text around the cursor. It only inserts the snippet you tap. |
-| **Your clipboard** | Read only when you tap **Save from clipboard**, never in the background. iOS may ask for permission to paste. |
+| **Your clipboard** | Saving uses the system **Paste** button with user-initiated access. The one-hour preview may also read the pasteboard while the app is open and can prompt for iOS paste permission. No continuous background monitoring. |
 | **Full Access** | Optional. Without it, the keyboard opens the database read-only. With it, the keyboard can also save, favorite, and delete snippets. iOS describes Full Access as also allowing network access, but the keyboard contains no networking code and has no iCloud entitlement. |
 | **Tracking** | The app adds no tracking or advertisements. Optional Google account authentication uses the official GoogleSignIn SDK, which has its own privacy disclosures and SDK privacy manifest. |
 

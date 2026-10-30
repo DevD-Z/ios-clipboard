@@ -9,7 +9,6 @@ struct ClipboardListView: View {
     @State private var favoritesOnly = false
     @State private var showingNewItem = false
     @State private var showingSettings = false
-    @State private var clipboardNotice: String?
     @State private var recentCopiedText: String?
     @State private var recentCopiedAt: Date?
     @AppStorage("clipboardLastSeenChangeCount") private var clipboardLastSeenChangeCount = -1
@@ -64,26 +63,22 @@ struct ClipboardListView: View {
                         .accessibilityIdentifier("appSettingsControl")
                 }
                 ToolbarItem(placement: .bottomBar) {
-                    Button(action: saveFromClipboard) {
-                        Text("Save from clipboard").foregroundStyle(.white)
+                    // The system controls paste authorization and disables this button
+                    // when the clipboard contains no supported text.
+                    PasteButton(payloadType: String.self) { strings in
+                        savePastedStrings(strings)
                     }
                     .buttonStyle(.borderedProminent)
                     .buttonBorderShape(.capsule)
                     .tint(.blue)
+                    .accessibilityLabel("Paste and save copied text")
+                    .accessibilityHint("Save the text currently copied to your clipboard")
                     .accessibilityIdentifier("appSaveFromClipboardControl")
                 }
                 ToolbarItem(placement: .bottomBar) {
                     Button { showingNewItem = true } label: { Label("New Snippet", systemImage: "plus") }
                         .accessibilityIdentifier("appNewSnippetControl")
                 }
-            }
-            .alert("Clipboard is empty", isPresented: Binding(
-                get: { clipboardNotice != nil },
-                set: { if !$0 { clipboardNotice = nil } }
-            )) {
-                Button("OK", role: .cancel) { clipboardNotice = nil }
-            } message: {
-                Text(clipboardNotice ?? "")
             }
             .sheet(isPresented: $showingNewItem) { NewSnippetSheet(model: model) }
             .sheet(isPresented: $showingSettings) { SettingsView(model: model, googleSync: googleSync) }
@@ -125,13 +120,17 @@ struct ClipboardListView: View {
         }
     }
 
-    private func saveFromClipboard() {
-        let text = UIPasteboard.general.string ?? UIPasteboard.general.url?.absoluteString
-        guard let text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            clipboardNotice = "Copy some text in another app first, then return and tap Save from clipboard. Or use + to create a snippet manually."
-            return
-        }
-        clipboardNotice = nil
+    private func savePastedStrings(_ strings: [String]) {
+        guard let text = strings.first(where: {
+            !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }) else { return }
+
+        // Save only after an explicit system Paste tap.
+        let observedAt = Date()
+        clipboardLastSeenChangeCount = UIPasteboard.general.changeCount
+        clipboardLastSeenTime = observedAt.timeIntervalSince1970
+        recentCopiedText = text
+        recentCopiedAt = observedAt
         model.errorMessage = nil
         model.add(text)
     }
