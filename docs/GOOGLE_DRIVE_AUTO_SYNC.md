@@ -71,3 +71,13 @@ Only enable sync for data you are comfortable storing in your own Google account
 - https://developers.google.com/identity/sign-in/ios/api-access
 - https://developers.google.com/workspace/drive/api/guides/appdata
 - https://developers.google.com/workspace/drive/api/guides/manage-uploads
+
+## Recent copied-text privacy
+
+The one-hour preview records only the system pasteboard change count and the time
+that Clipboard first observed a change. The text itself is not automatically
+saved into the snippet database or uploaded to Drive. iOS does not expose the
+original copy timestamp to other applications, so the one-hour interval is
+measured from Clipboard's first observation, not guaranteed from the exact time
+of copying. The preview requires pasteboard access and iOS can show a permission
+prompt. Copying while the application is suspended cannot be monitored live.

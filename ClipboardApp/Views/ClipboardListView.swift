@@ -89,14 +89,21 @@ struct ClipboardListView: View {
         if count != clipboardLastSeenChangeCount {
             clipboardLastSeenChangeCount = count
             clipboardLastSeenTime = Date().timeIntervalSince1970
-            // Reading another app's pasteboard can trigger the iOS paste-permission prompt.
-            // Don't automatically add the preview to permanent saved snippets or Google Drive.
+            recentCopiedText = nil
+        }
+        // Preserve the observed expiry time across app reopening, without persisting
+        // the copied text itself. Once expired, it cannot be revived until a new copy.
+        guard clipboardLastSeenTime > 0,
+              Date().timeIntervalSince1970 - clipboardLastSeenTime < recentCopyLifetime else {
+            recentCopiedText = nil
+            recentCopiedAt = nil
+            return
+        }
+        if recentCopiedText == nil {
+            // iOS may ask for permission when another app's pasteboard is read.
             if let copied = pasteboard.string, !copied.isEmpty {
                 recentCopiedText = copied
-                recentCopiedAt = Date()
-            } else {
-                recentCopiedText = nil
-                recentCopiedAt = nil
+                recentCopiedAt = Date(timeIntervalSince1970: clipboardLastSeenTime)
             }
         }
     }

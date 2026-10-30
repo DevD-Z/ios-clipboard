@@ -83,8 +83,12 @@ final class GoogleDriveSyncModel: ObservableObject {
         Task {
             defer { isBusy = false }
             do {
+                var presenter = root
+                while let next = presenter.presentedViewController {
+                    presenter = next
+                }
                 let result = try await GIDSignIn.sharedInstance.signIn(
-                    withPresenting: root,
+                    withPresenting: presenter,
                     hint: nil,
                     additionalScopes: [DriveAppDataAPI.scope]
                 )
