@@ -3,6 +3,7 @@ import UIKit
 
 struct ClipboardListView: View {
     @ObservedObject var model: ClipboardAppModel
+    @StateObject private var googleSync = GoogleDriveSyncModel()
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var query = ""
     @State private var favoritesOnly = false
@@ -30,12 +31,19 @@ struct ClipboardListView: View {
         NavigationStack {
             snippetList
             .navigationTitle("Clipboard")
-            .onAppear { observeCurrentClipboard() }
+            .onAppear {
+                observeCurrentClipboard()
+                googleSync.restoreIfNeeded(model: model)
+            }
+            .onChange(of: model.items) { _, _ in
+                googleSync.scheduleSync(model: model)
+            }
             .onReceive(NotificationCenter.default.publisher(for: UIPasteboard.changedNotification)) { _ in
                 observeCurrentClipboard()
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
                 observeCurrentClipboard()
+                googleSync.scheduleSync(model: model)
             }
             .onReceive(Timer.publish(every: 30, on: .main, in: .common).autoconnect()) { _ in
                 removeExpiredRecentCopy()
@@ -69,7 +77,7 @@ struct ClipboardListView: View {
                 }
             }
             .sheet(isPresented: $showingNewItem) { NewSnippetSheet(model: model) }
-            .sheet(isPresented: $showingSettings) { SettingsView(model: model) }
+            .sheet(isPresented: $showingSettings) { SettingsView(model: model, googleSync: googleSync) }
             .sheet(isPresented: Binding(get: { !hasCompletedOnboarding }, set: { hasCompletedOnboarding = !$0 })) { OnboardingView() }
         }
     }

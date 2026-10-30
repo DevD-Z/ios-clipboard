@@ -146,6 +146,26 @@ final class ClipboardAppModel: ObservableObject {
         }
     }
 
+    func replicaSnapshot() async throws -> [ClipboardItem] {
+        guard let store else { throw ClipboardStoreError.sharedContainerUnavailable }
+        return try await withCheckedThrowingContinuation { continuation in
+            ioQueue.async {
+                continuation.resume(with: Result { try store.replicaSnapshot() })
+            }
+        }
+    }
+
+    func mergeGoogleReplica(_ items: [ClipboardItem]) async throws -> Int {
+        guard let store else { throw ClipboardStoreError.sharedContainerUnavailable }
+        let count: Int = try await withCheckedThrowingContinuation { continuation in
+            ioQueue.async {
+                continuation.resume(with: Result { try store.mergeReplica(items) })
+            }
+        }
+        if count > 0 { reload() }
+        return count
+    }
+
     func add(_ text: String, completion: @escaping (Bool) -> Void = { _ in }) {
         perform({ try $0.add(text: text) }, completion: completion)
     }

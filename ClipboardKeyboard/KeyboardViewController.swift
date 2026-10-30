@@ -14,6 +14,9 @@ final class KeyboardViewController: UIInputViewController {
     private let accessLabel = UILabel()
     private let saveFromClipboardButton = UIButton(type: .system)
     private let actions = UIStackView()
+    private let latestCopyButton = UIButton(type: .system)
+    private var recentCopyText: String?
+    private var recentCopyTimer: Timer?
     private var tableHeightConstraint: NSLayoutConstraint!
     private var allItems: [ClipboardItem] = []
     private var visibleItems: [ClipboardItem] = []
@@ -45,17 +48,20 @@ final class KeyboardViewController: UIInputViewController {
     }
 
     deinit {
+        recentCopyTimer?.invalidate()
         CFNotificationCenterRemoveObserver(CFNotificationCenterGetDarwinNotifyCenter(), Unmanaged.passUnretained(self).toOpaque(), CFNotificationName(AppGroup.changeNotification as CFString), nil)
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         configureStoreAndReload()
+        refreshRecentCopy()
     }
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         configureStoreAndReload()
+        refreshRecentCopy()
     }
 
     override func viewWillLayoutSubviews() {
@@ -132,6 +138,16 @@ final class KeyboardViewController: UIInputViewController {
         saveFromClipboardButton.titleLabel?.numberOfLines = 1
         saveFromClipboardButton.addTarget(self, action: #selector(saveFromClipboard), for: .touchUpInside)
 
+        var preview = UIButton.Configuration.gray()
+        preview.title = "Latest copied text (1h)"
+        preview.subtitle = "Tap to paste"
+        preview.cornerStyle = .medium
+        latestCopyButton.configuration = preview
+        latestCopyButton.contentHorizontalAlignment = .leading
+        latestCopyButton.isHidden = true
+        latestCopyButton.accessibilityIdentifier = "clipboardKeyboardLatestCopied"
+        latestCopyButton.addTarget(self, action: #selector(insertRecentCopy), for: .touchUpInside)
+
         actions.axis = .horizontal
         actions.spacing = 8
         actions.alignment = .center
@@ -142,7 +158,7 @@ final class KeyboardViewController: UIInputViewController {
         globeButton.widthAnchor.constraint(equalToConstant: 44).isActive = true
         globeButton.heightAnchor.constraint(equalToConstant: 36).isActive = true
 
-        let root = UIStackView(arrangedSubviews: [header, tableView, emptyLabel, actions])
+        let root = UIStackView(arrangedSubviews: [header, latestCopyButton, tableView, emptyLabel, actions])
         root.translatesAutoresizingMaskIntoConstraints = false
         root.axis = .vertical
         root.spacing = 6
@@ -156,6 +172,46 @@ final class KeyboardViewController: UIInputViewController {
         tableHeightConstraint = tableView.heightAnchor.constraint(equalToConstant: 190)
         tableHeightConstraint.isActive = true
         updateKeyboardHeight()
+        recentCopyTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+            self?.refreshRecentCopy()
+        }
+    }
+
+    /// Shows only the most recently observed pasteboard content; it is not saved
+    /// as a permanent snippet or uploaded to Google without an explicit Save action.
+    private func refreshRecentCopy() {
+        guard hasFullAccess else {
+            recentCopyText = nil
+            latestCopyButton.isHidden = true
+            return
+        }
+        let board = UIPasteboard.general
+        let defaults = UserDefaults.standard
+        let count = board.changeCount
+        let recorded = defaults.integer(forKey: "keyboardLastCopyChangeCount")
+        if count != recorded {
+            defaults.set(count, forKey: "keyboardLastCopyChangeCount")
+            defaults.set(Date().timeIntervalSince1970, forKey: "keyboardLastCopySeenTime")
+        }
+        let time = defaults.double(forKey: "keyboardLastCopySeenTime")
+        guard time > 0, Date().timeIntervalSince1970 - time < 3600,
+              let text = board.string, !text.isEmpty else {
+            recentCopyText = nil
+            latestCopyButton.isHidden = true
+            return
+        }
+        recentCopyText = text
+        latestCopyButton.isHidden = false
+        var configuration = latestCopyButton.configuration ?? .gray()
+        configuration.title = "Latest copy · expires in 1h"
+        configuration.subtitle = String(text.prefix(90))
+        latestCopyButton.configuration = configuration
+    }
+
+    @objc private func insertRecentCopy() {
+        refreshRecentCopy()
+        guard let text = recentCopyText else { return }
+        textDocumentProxy.insertText(text)
     }
 
     private func configureStoreAndReload() {

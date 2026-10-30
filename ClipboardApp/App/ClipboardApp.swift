@@ -1,4 +1,5 @@
 import SwiftUI
+import GoogleSignIn
 #if DEBUG
 import CoreData
 import SwiftData
@@ -63,6 +64,7 @@ struct IOSClipboardApp: App {
         WindowGroup {
             ClipboardListView(model: model)
                 .environment(\.locale, Locale(identifier: "en"))
+                .onOpenURL { _ = GIDSignIn.sharedInstance.handle($0) }
                 .task { model.reload() }
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
                     model.reload()

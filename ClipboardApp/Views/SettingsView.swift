@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @ObservedObject var model: ClipboardAppModel
+    @ObservedObject var googleSync: GoogleDriveSyncModel
     @Environment(\.dismiss) private var dismiss
     @State private var backupDocument: ClipboardBackupDocument?
     @State private var showingBackupExporter = false
@@ -15,6 +16,34 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
+                Section("Google Drive Auto Sync") {
+                    if googleSync.isConfigured {
+                        if googleSync.isSignedIn {
+                            Label(googleSync.accountEmail ?? "Connected to Google", systemImage: "person.crop.circle")
+                            Toggle("Auto Sync", isOn: Binding(
+                                get: { googleSync.isEnabled },
+                                set: { googleSync.setEnabled($0, model: model) }
+                            ))
+                            Button("Sync Now") { googleSync.syncNow(model: model) }
+                                .disabled(googleSync.isBusy)
+                            Button("Disconnect Google Account", role: .destructive) {
+                                googleSync.signOut()
+                            }
+                        } else {
+                            Button("Connect Google Drive") {
+                                googleSync.signIn(model: model)
+                            }
+                            .disabled(googleSync.isBusy)
+                        }
+                    } else {
+                        Label("Google OAuth setup required", systemImage: "exclamationmark.circle")
+                            .foregroundStyle(.orange)
+                        Text("Add an iOS OAuth Client ID and reversed URL scheme to ClipboardApp/Info.plist before building.")
+                    }
+                    Text(googleSync.status).font(.footnote).foregroundStyle(.secondary)
+                } footer: {
+                    Text("Sync runs on changes while the app is active and when it reopens. iOS does not guarantee continuous background sync. Google Drive stores an app-private JSON replica; iCloud is optional.")
+                }
                 Section("Storage") {
                     if model.isUsingLocalOnlyStorage {
                         Label("Local storage fallback is active", systemImage: "exclamationmark.triangle")

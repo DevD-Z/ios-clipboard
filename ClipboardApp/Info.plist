@@ -3,6 +3,11 @@
 <plist version="1.0"><dict>
   <key>CFBundleDevelopmentRegion</key><string>en</string>
   <key>CFBundleLocalizations</key><array><string>en</string></array>
+  <key>GIDClientID</key><string>YOUR_IOS_CLIENT_ID.apps.googleusercontent.com</string>
+  <key>CFBundleURLTypes</key>
+  <array><dict><key>CFBundleURLSchemes</key><array>
+    <string>com.googleusercontent.apps.REPLACE_WITH_YOUR_CLIENT_ID</string>
+  </array></dict></array>
   <key>CFBundleDisplayName</key><string>Clipboard</string>
   <key>CFBundleExecutable</key><string>$(EXECUTABLE_NAME)</string>
   <key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
