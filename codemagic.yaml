@@ -1,0 +1,59 @@
+workflows:
+  ios-clipboard-unsigned:
+    name: iOS Clipboard - Unsigned IPA
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+    environment:
+      xcode: 26.3
+      vars:
+        XCODE_PROJECT: "iOSClipboard.xcodeproj"
+        XCODE_SCHEME: "Clipboard"
+
+    scripts:
+      - name: Verify Xcode project
+        script: |
+          set -euo pipefail
+          xcodebuild -version
+          test -f "$CM_BUILD_DIR/$XCODE_PROJECT/project.pbxproj"
+          xcodebuild -list -project "$CM_BUILD_DIR/$XCODE_PROJECT"
+
+      - name: Build app and keyboard extension (unsigned)
+        script: |
+          set -euo pipefail
+          xcodebuild \
+            -project "$CM_BUILD_DIR/$XCODE_PROJECT" \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath "$CM_BUILD_DIR/build/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Package unsigned IPA
+        script: |
+          set -euo pipefail
+
+          APP="$CM_BUILD_DIR/build/DerivedData/Build/Products/Release-iphoneos/Clipboard.app"
+          EXTENSION="$APP/PlugIns/ClipboardKeyboard.appex"
+          OUTPUT="$CM_BUILD_DIR/build/ios/ipa"
+          STAGING="$CM_BUILD_DIR/build/ipa-staging"
+
+          test -d "$APP" || { echo "Missing Clipboard.app"; exit 1; }
+          test -d "$EXTENSION" || { echo "Missing keyboard extension"; exit 1; }
+
+          mkdir -p "$OUTPUT" "$STAGING/Payload"
+          /usr/bin/ditto "$APP" "$STAGING/Payload/Clipboard.app"
+
+          cd "$STAGING"
+          /usr/bin/zip -qry "$OUTPUT/Clipboard-unsigned.ipa" Payload
+
+          echo "IPA: $OUTPUT/Clipboard-unsigned.ipa"
+          /usr/bin/unzip -l "$OUTPUT/Clipboard-unsigned.ipa" | tail -n 5
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
