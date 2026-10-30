@@ -34,6 +34,26 @@ final class ClipboardAppModel: ObservableObject {
             UserDefaults.standard.bool(forKey: AppGroup.cloudSyncPreferenceKey)
         if isUsingLocalOnlyStorage {
             errorMessage = nil
+        } else if injectedStore == nil, let shared = sharedStore {
+            // Once a correctly signed App Group becomes available, keep previously
+            // saved fallback items instead of making them seem to disappear.
+            ioQueue.async { [weak self] in
+                let db = localURL.appendingPathComponent(AppGroup.swiftDataStoreFilename)
+                guard FileManager.default.fileExists(atPath: db.path) else { return }
+                let local = ClipboardStore(containerURL: localURL, access: .readOnly)
+                do {
+                    let items = try local.load()
+                    if !items.isEmpty {
+                        _ = try shared.mergeBackupItems(items)
+                        DispatchQueue.main.async { self?.reload() }
+                    }
+                } catch {
+                    // Never delete or overwrite fallback data on a failed import.
+                    DispatchQueue.main.async {
+                        self?.errorMessage = "Could not import previous local-only snippets: \(error.localizedDescription)"
+                    }
+                }
+            }
         }
         CFNotificationCenterAddObserver(
             CFNotificationCenterGetDarwinNotifyCenter(),

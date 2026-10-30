@@ -195,7 +195,9 @@ private struct DriveAppDataAPI {
             }
             let items = try await model.replicaSnapshot().sorted { $0.id.uuidString < $1.id.uuidString }
             guard items.count <= 10_000 else { throw DriveSyncError.invalidRemoteData }
-            let payload = try JSONEncoder().encode(Replica(formatVersion: 1, items: items))
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.sortedKeys]
+            let payload = try encoder.encode(Replica(formatVersion: 1, items: items))
             guard payload.count <= maxBytes else { throw DriveSyncError.invalidRemoteData }
             if payload == remote?.data { return items.filter { !$0.isDeleted }.count }
             if remote == nil && items.isEmpty { return 0 }

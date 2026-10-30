@@ -8,7 +8,7 @@ struct OnboardingView: View {
     private let pages: [(title: LocalizedStringKey, image: String, description: LocalizedStringKey)] = [
         ("Your clipboard, ready to type", "doc.on.clipboard", "Save text snippets and insert them from your clipboard."),
         ("Enable and switch", "globe", "In Settings, go to General > Keyboard > Keyboards > Add New Keyboard, then select Clipboard. Tap the globe key while typing to switch to it."),
-        ("Private by design", "lock", "Snippets stay on your device unless you turn on iCloud sync in the app’s Settings. Full Access is only needed to save, favorite, or delete snippets from the keyboard.")
+        ("Private by design", "lock", "Snippets stay on your device unless you enable iCloud Sync, Google Drive Auto Sync, or manually export a backup. Full Access is only needed to manage snippets from the keyboard.")
     ]
 
     var body: some View {

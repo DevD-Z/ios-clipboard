@@ -16,7 +16,7 @@
   <img src="https://img.shields.io/badge/iOS-17.0%2B-0A84FF?logo=apple&logoColor=white" alt="iOS 17.0 or later">
   <img src="https://img.shields.io/badge/Xcode-26.3-147EFB?logo=xcode&logoColor=white" alt="Xcode 26.3">
   <img src="https://img.shields.io/badge/SwiftUI%20%2B%20UIKit-F05138?logo=swift&logoColor=white" alt="SwiftUI and UIKit">
-  <img src="https://img.shields.io/badge/dependencies-none-34C759" alt="No third-party dependencies">
+  <img src="https://img.shields.io/badge/Google%20Sign--In-SPM-4285F4" alt="No third-party dependencies">
 </p>
 
 <p align="center">
@@ -30,7 +30,9 @@
 - **Favorites.** Star the snippets you use most. Both the app and the keyboard can show only your favorites.
 - **Search.** Find a snippet by any word it contains.
 - **Works without Full Access.** The keyboard can always read and insert your snippets. Full Access only adds saving, favoriting, and deleting from the keyboard itself.
-- **Local-first with optional Google Drive / Files backups.** No iCloud account required for local storage; export a JSON backup to iOS Files (including Google Drive when enabled) and merge it back later. This is manual backup and restore, not Google account sync.
+- **Local-first with optional Google Drive / Files backups.** No iCloud account required; export a JSON backup to iOS Files or a connected Files provider.
+- **Google Drive Auto Sync (optional).** Sign in via the GoogleSignIn SDK and grant the `drive.appdata` scope. Sync on local changes while the app is active and on app reopen. Requires your own Google OAuth Client ID and a correctly signed app; no continuous background guarantee.
+- **Latest copied text.** Preview the most recent clipboard text and let it expire after one hour (from when the app or keyboard observes it). Never automatically store this preview as a saved snippet.
 - **Optional iCloud sync.** Off by default. When you turn it on, snippets sync through your private iCloud database to your devices signed in to the same Apple Account.
 - **Native and accessible.** Built from system components, with support for light and dark mode, Dynamic Type, VoiceOver labels, iPhone and iPad, with an English-only app interface.
 - **No account, analytics, or ads.**
@@ -64,6 +66,20 @@ iCloud Sync requires a signed app with Apple-approved CloudKit and App Group ent
 The unsigned Codemagic build is for compilation/testing only and **cannot enable iCloud Sync**.
 See [iCloud setup and signed Codemagic builds](docs/ICLOUD_SETUP.md) for Apple Developer
 capabilities, provisioning profiles for the app and keyboard extension, and schema deployment.
+
+## Google Drive Auto Sync
+
+The optional Google integration uses the official GoogleSignIn Swift package and the
+private Drive `appDataFolder`. It is **disabled until an actual Google iOS OAuth
+Client ID and reversed URL scheme are configured**, and until the user signs in.
+See [Google Drive Auto Sync setup](docs/GOOGLE_DRIVE_AUTO_SYNC.md).
+
+iOS may suspend closed apps, so automatic synchronization is best-effort while the app
+is running or reopened. It is not instant 24/7 background sync.
+
+If the App Group entitlement is absent in the installed IPA, Clipboard now falls
+back to local-only storage so saving in the main app works. The keyboard cannot
+access the fallback. A properly signed App Group is still required to share snippets.
 
 ## Google Drive backup (no iCloud account required)
 
@@ -104,11 +120,11 @@ A keyboard can see what you type, so this section describes exactly what the cod
 | --- | --- |
 | **What is stored** | The text of each snippet, when it was created, and whether it is a favorite. The app also stores two preferences: whether you finished the introduction and whether iCloud sync is on. |
 | **Where it is stored** | A SwiftData (SQLite) database in an App Group container that only the Clipboard app and its keyboard can access. The database is excluded from device backups and uses iOS file protection. |
-| **What leaves the device** | Nothing, unless you turn on **Sync with iCloud** or **manually export a backup file**. The app makes no Google API requests of its own. Sync uses Apple's CloudKit and stores snippets in your *private* iCloud database, which the developer cannot read. |
+| **What leaves the device** | Nothing unless you enable iCloud Sync, explicitly enable Google Drive Auto Sync by signing in, or manually export a backup. Google sync uploads saved snippets to the account's private Google Drive appDataFolder; iCloud uses CloudKit. The one-hour recent-copy preview is not uploaded without saving it as a snippet. |
 | **What the keyboard reads** | Only your saved snippets. It does not read the text around the cursor. It only inserts the snippet you tap. |
 | **Your clipboard** | Read only when you tap **Save from clipboard**, never in the background. iOS may ask for permission to paste. |
 | **Full Access** | Optional. Without it, the keyboard opens the database read-only. With it, the keyboard can also save, favorite, and delete snippets. iOS describes Full Access as also allowing network access, but the keyboard contains no networking code and has no iCloud entitlement. |
-| **Tracking** | None. The [privacy manifest](PrivacyInfo.xcprivacy) declares no tracking and no collected data. There are no analytics, ads, accounts, or third-party SDKs. |
+| **Tracking** | The app adds no tracking or advertisements. Optional Google account authentication uses the official GoogleSignIn SDK, which has its own privacy disclosures and SDK privacy manifest. |
 
 Things to be aware of:
 
@@ -119,6 +135,7 @@ Things to be aware of:
 ## Built with
 
 - **Swift** with **SwiftUI** for the app and **UIKit** (`UIInputViewController`) for the keyboard extension
+- **GoogleSignIn 9.x** via Swift Package Manager for optional Google Drive appDataFolder authentication
 - **SwiftData** for storage, shared through an **App Group**
 - **CloudKit** (through SwiftData) for the optional private sync
 - **Darwin notifications** so the app and the keyboard refresh each other
