@@ -57,6 +57,13 @@
 
 App-owned text is displayed in English. Apple's system Settings screens and permission prompts still follow the device language.
 
+## iCloud signing and sync
+
+iCloud Sync requires a signed app with Apple-approved CloudKit and App Group entitlements.
+The unsigned Codemagic build is for compilation/testing only and **cannot enable iCloud Sync**.
+See [iCloud setup and signed Codemagic builds](docs/ICLOUD_SETUP.md) for Apple Developer
+capabilities, provisioning profiles for the app and keyboard extension, and schema deployment.
+
 ## Getting started
 
 1. **Open Clipboard** and go through the short introduction.

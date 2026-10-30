@@ -57,3 +57,50 @@ workflows:
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
+
+  ios-clipboard-icloud-development:
+    name: iOS Clipboard - Signed iCloud (Development)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+    # Requires Apple Developer membership and signing identities configured in Codemagic.
+    # The bundle ID, both provisioning profiles, App Group, and CloudKit container must
+    # belong to your Apple Developer team; see docs/ICLOUD_SETUP.md.
+    environment:
+      xcode: 26.3
+      ios_signing:
+        distribution_type: development
+        bundle_identifier: com.iosclipboard.app
+      vars:
+        XCODE_PROJECT: "iOSClipboard.xcodeproj"
+        XCODE_SCHEME: "Clipboard"
+
+    scripts:
+      - name: Check Xcode project and signing prerequisites
+        script: |
+          set -euo pipefail
+          xcodebuild -version
+          test -f "$CM_BUILD_DIR/$XCODE_PROJECT/project.pbxproj"
+          xcodebuild -list -project "$CM_BUILD_DIR/$XCODE_PROJECT"
+
+      - name: Configure signing for app and keyboard extension
+        script: xcode-project use-profiles
+
+      - name: Build signed IPA with CloudKit entitlements
+        script: |
+          set -euo pipefail
+          xcode-project build-ipa \
+            --project "$CM_BUILD_DIR/$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME"
+
+      - name: Verify keyboard extension is packaged
+        script: |
+          set -euo pipefail
+          IPA="$(find "$CM_BUILD_DIR/build/ios/ipa" -maxdepth 1 -type f -name '*.ipa' -print -quit)"
+          test -n "$IPA" && test -f "$IPA"
+          /usr/bin/unzip -l "$IPA" | grep -qE 'Payload/[^/]+\.app/PlugIns/ClipboardKeyboard\.appex/'
+          echo "Signed IPA with keyboard extension: $IPA"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
