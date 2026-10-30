@@ -32,7 +32,7 @@
 - **Works without Full Access.** The keyboard can always read and insert your snippets. Full Access only adds saving, favoriting, and deleting from the keyboard itself.
 - **Local-first with optional Google Drive / Files backups.** No iCloud account required; export a JSON backup to iOS Files or a connected Files provider.
 - **Google Drive Auto Sync (optional).** Sign in via the GoogleSignIn SDK and grant the `drive.appdata` scope. Sync on local changes while the app is active and on app reopen. Requires your own Google OAuth Client ID and a correctly signed app; no continuous background guarantee.
-- **Latest copied text.** Preview the most recent clipboard text and let it expire after one hour (from when the app or keyboard observes it). Never automatically store this preview as a saved snippet.
+- **Two independent sections.** **Temporary clipboard** only previews the latest copied text for up to one hour after the app or keyboard observes it. It has its own expiry and never auto-saves, syncs, or resets when you create a saved snippet. **Saved Snippets** created with **+** (or the explicitly requested Paste-and-save action) remain until you delete them; they do not inherit the temporary expiry.
 - **Optional iCloud sync.** Off by default. When you turn it on, snippets sync through your private iCloud database to your devices signed in to the same Apple Account.
 - **Native and accessible.** Built from system components, with support for light and dark mode, Dynamic Type, VoiceOver labels, iPhone and iPad, with an English-only app interface.
 - **No account, analytics, or ads.**
@@ -66,6 +66,12 @@ iCloud Sync requires a signed app with Apple-approved CloudKit and App Group ent
 The unsigned Codemagic build is for compilation/testing only and **cannot enable iCloud Sync**.
 See [iCloud setup and signed Codemagic builds](docs/ICLOUD_SETUP.md) for Apple Developer
 capabilities, provisioning profiles for the app and keyboard extension, and schema deployment.
+
+## Temporary clipboard vs. saved snippets
+
+- **Temporary clipboard (1 hour):** read-only preview of the latest text copied on the device. It is not inserted into the saved list and never included in iCloud, Google Drive Auto Sync, manual backup or favorites. It disappears when its one-hour observation window ends. The system pasteboard itself is controlled by iOS and is not cleared by this app.
+- **Saved Snippets:** created with **+** or an explicit **Paste and save** action, stored independently in the snippet database. Saved items do not expire after one hour and can be manually edited, favorited, deleted, backed up or synced when those options are enabled.
+- Saving a snippet cannot restart the temporary countdown; viewing the temporary preview cannot save a snippet. The two lists may contain the same text but are not linked.
 
 ## Google Drive Auto Sync
 

@@ -1,9 +1,9 @@
 import UIKit
 
 final class KeyboardViewController: UIInputViewController {
-    private enum Section: Int { case recent, favorites }
+    private enum Section: Int { case saved, favorites }
     private let titleLabel = UILabel()
-    private let sectionControl = UISegmentedControl(items: [String(localized: "Recent"), String(localized: "Favorites")])
+    private let sectionControl = UISegmentedControl(items: ["Saved", String(localized: "Favorites")])
     private let header = UIStackView()
     // A plain table keeps the keyboard compact. Cells use UIKit's list background
     // configuration so each snippet has system-provided rounded edges without the
@@ -139,8 +139,8 @@ final class KeyboardViewController: UIInputViewController {
         saveFromClipboardButton.addTarget(self, action: #selector(saveFromClipboard), for: .touchUpInside)
 
         var preview = UIButton.Configuration.gray()
-        preview.title = "Latest copied text (1h)"
-        preview.subtitle = "Tap to paste"
+        preview.title = "Temporary clipboard (1h)"
+        preview.subtitle = "Tap to insert · not saved"
         preview.cornerStyle = .medium
         latestCopyButton.configuration = preview
         latestCopyButton.contentHorizontalAlignment = .leading
@@ -177,8 +177,9 @@ final class KeyboardViewController: UIInputViewController {
         }
     }
 
-    /// Shows only the most recently observed pasteboard content; it is not saved
-    /// as a permanent snippet or uploaded to Google without an explicit Save action.
+    /// The one-hour preview is independent of the persistent saved-snippet store.
+    /// Viewing or inserting it never saves it to disk or uploads it to a cloud service.
+    /// A separate, explicitly labeled Save-from-clipboard action is permanent.
     private func refreshRecentCopy() {
         guard hasFullAccess else {
             recentCopyText = nil
@@ -203,7 +204,7 @@ final class KeyboardViewController: UIInputViewController {
         recentCopyText = text
         latestCopyButton.isHidden = false
         var configuration = latestCopyButton.configuration ?? .gray()
-        configuration.title = "Latest copy · expires in 1h"
+        configuration.title = "Temporary copy · expires in 1h"
         configuration.subtitle = String(text.prefix(90))
         latestCopyButton.configuration = configuration
     }
@@ -251,7 +252,7 @@ final class KeyboardViewController: UIInputViewController {
 
     private func updateSnapshot() {
         switch Section(rawValue: sectionControl.selectedSegmentIndex) ?? .recent {
-        case .recent: visibleItems = allItems
+        case .saved: visibleItems = allItems
         case .favorites: visibleItems = allItems.filter(\.isFavorite)
         }
         updateEmptyState()

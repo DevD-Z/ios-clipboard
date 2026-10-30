@@ -24,7 +24,7 @@ struct ClipboardListView: View {
 
     private var emptyTitle: String { String(localized: favoritesOnly ? "No Favorites" : "No Snippets Yet") }
     private var emptyDescription: String {
-        return String(localized: favoritesOnly ? "Mark a snippet as a favorite to find it here." : "Save from clipboard or create a snippet to use it from your keyboard.")
+        return String(localized: favoritesOnly ? "Mark a snippet as a favorite to find it here." : "Tap + to create a saved snippet, or Paste to save copied text permanently.")
     }
 
     var body: some View {
@@ -125,12 +125,8 @@ struct ClipboardListView: View {
             !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }) else { return }
 
-        // Save only after an explicit system Paste tap.
-        let observedAt = Date()
-        clipboardLastSeenChangeCount = UIPasteboard.general.changeCount
-        clipboardLastSeenTime = observedAt.timeIntervalSince1970
-        recentCopiedText = text
-        recentCopiedAt = observedAt
+        // Explicitly saved snippets and the one-hour preview are independent:
+        // saving never creates, refreshes or extends the temporary entry.
         model.errorMessage = nil
         model.add(text)
     }
@@ -146,27 +142,29 @@ struct ClipboardListView: View {
             }
             if let recentCopiedText, let recentCopiedAt,
                Date().timeIntervalSince(recentCopiedAt) < recentCopyLifetime {
-                Section("Latest copied text · disappears after 1 hour") {
-                    HStack {
-                        Text(recentCopiedText).lineLimit(3)
-                        Spacer()
-                        Button("Save") { model.add(recentCopiedText) }
-                            .buttonStyle(.bordered)
-                    }
-                    .accessibilityIdentifier("appRecentCopiedText")
+                Section {
+                    Text(recentCopiedText)
+                        .lineLimit(3)
+                        .accessibilityIdentifier("appRecentCopiedText")
+                } header: {
+                    Text("Temporary clipboard · 1 hour")
+                } footer: {
+                    Text("This preview disappears after one hour. It is separate from Saved Snippets and is never saved or synced automatically.")
                 }
             }
             if hasCompletedOnboarding, let error = model.errorMessage {
                 Section { Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.red) }
             }
-            if visibleItems.isEmpty {
-                if query.isEmpty {
-                    ContentUnavailableView(emptyTitle, systemImage: favoritesOnly ? "star" : "doc.on.clipboard", description: Text(emptyDescription))
+            Section("Saved Snippets · kept until deleted") {
+                if visibleItems.isEmpty {
+                    if query.isEmpty {
+                        ContentUnavailableView(emptyTitle, systemImage: favoritesOnly ? "star" : "doc.on.clipboard", description: Text(emptyDescription))
+                    } else {
+                        ContentUnavailableView.search(text: query)
+                    }
                 } else {
-                    ContentUnavailableView.search(text: query)
+                    ForEach(visibleItems) { item in SnippetNavigationRow(item: item, model: model) }
                 }
-            } else {
-                ForEach(visibleItems) { item in SnippetNavigationRow(item: item, model: model) }
             }
         }
     }

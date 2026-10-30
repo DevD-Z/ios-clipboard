@@ -142,7 +142,7 @@ final class ClipboardUITests: XCTestCase {
 
         // The globe is system UI. Open its input-mode list and choose the extension by
         // name, rather than relying on the order of the user's installed keyboards.
-        // Detect the extension by its Recent/Favorites segment, which is available
+        // Detect the extension by its Saved/Favorites segment, which is available
         // regardless of Full Access.
         let globe = app.buttons.matching(NSPredicate(format: "label == %@ OR label == %@", "Next keyboard", "Siguiente teclado")).firstMatch
         XCTAssertTrue(globe.waitForExistence(timeout: 3), app.debugDescription)
