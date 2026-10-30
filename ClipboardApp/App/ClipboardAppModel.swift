@@ -14,13 +14,27 @@ final class ClipboardAppModel: ObservableObject {
     private let ioQueue = DispatchQueue(label: "com.iosclipboard.storage", qos: .userInitiated)
     private var cloudEventObserver: NSObjectProtocol?
 
-    init(store: ClipboardStore? = try? ClipboardStore(
-        access: .readWrite,
-        cloudSyncEnabled: UserDefaults.standard.bool(forKey: AppGroup.cloudSyncPreferenceKey)
-    )) {
-        self.store = store
-        isCloudSyncEnabled = UserDefaults.standard.bool(forKey: AppGroup.cloudSyncPreferenceKey)
-        if store == nil { errorMessage = ClipboardStoreError.sharedContainerUnavailable.localizedDescription }
+    @Published private(set) var isUsingLocalOnlyStorage = false
+
+    init(store injectedStore: ClipboardStore? = nil) {
+        let sharedStore = try? ClipboardStore(
+            access: .readWrite,
+            cloudSyncEnabled: UserDefaults.standard.bool(forKey: AppGroup.cloudSyncPreferenceKey)
+        )
+        // No App Group entitlement is present in some re-signed IPA builds.
+        // Keep the app usable without ever pretending that the keyboard can share this fallback.
+        let localURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("ClipboardLocalOnly", isDirectory: true)
+        let resolvedStore = injectedStore ?? sharedStore ?? ClipboardStore(
+            containerURL: localURL, access: .readWrite, cloudSyncEnabled: false
+        )
+        self.store = resolvedStore
+        isUsingLocalOnlyStorage = injectedStore == nil && sharedStore == nil
+        isCloudSyncEnabled = !isUsingLocalOnlyStorage &&
+            UserDefaults.standard.bool(forKey: AppGroup.cloudSyncPreferenceKey)
+        if isUsingLocalOnlyStorage {
+            errorMessage = nil
+        }
         CFNotificationCenterAddObserver(
             CFNotificationCenterGetDarwinNotifyCenter(),
             Unmanaged.passUnretained(self).toOpaque(),
@@ -62,6 +76,10 @@ final class ClipboardAppModel: ObservableObject {
     }
 
     func setCloudSyncEnabled(_ enabled: Bool) {
+        if isUsingLocalOnlyStorage {
+            cloudSyncErrorMessage = "App Group signing is missing. Local saving works, but iCloud and the keyboard need a properly signed App Group."
+            return
+        }
         guard !isChangingCloudSync, enabled != isCloudSyncEnabled else { return }
         guard let store else {
             cloudSyncErrorMessage = ClipboardStoreError.sharedContainerUnavailable.localizedDescription

@@ -16,6 +16,11 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 Section("Storage") {
+                    if model.isUsingLocalOnlyStorage {
+                        Label("Local storage fallback is active", systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.orange)
+                        Text("This IPA is missing the shared App Group entitlement. Saving inside the app works, but the keyboard cannot read these items. Install a build signed with matching App Group profiles to enable sharing.")
+                    }
                     Label("Saved locally on this device", systemImage: "iphone")
                     Text("iCloud is optional. Your snippets stay on this device unless you enable iCloud Sync or export a backup.")
                 }

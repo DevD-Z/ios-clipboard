@@ -8,6 +8,12 @@ struct ClipboardListView: View {
     @State private var favoritesOnly = false
     @State private var showingNewItem = false
     @State private var showingSettings = false
+    @State private var recentCopiedText: String?
+    @State private var recentCopiedAt: Date?
+    @AppStorage("clipboardLastSeenChangeCount") private var clipboardLastSeenChangeCount = -1
+    @AppStorage("clipboardLastSeenTime") private var clipboardLastSeenTime = 0.0
+    private let recentCopyLifetime: TimeInterval = 60 * 60
+
 
     private var visibleItems: [ClipboardItem] {
         model.items.filter { item in
@@ -24,6 +30,16 @@ struct ClipboardListView: View {
         NavigationStack {
             snippetList
             .navigationTitle("Clipboard")
+            .onAppear { observeCurrentClipboard() }
+            .onReceive(NotificationCenter.default.publisher(for: UIPasteboard.changedNotification)) { _ in
+                observeCurrentClipboard()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+                observeCurrentClipboard()
+            }
+            .onReceive(Timer.publish(every: 30, on: .main, in: .common).autoconnect()) { _ in
+                removeExpiredRecentCopy()
+            }
             .searchable(text: $query, prompt: "Search snippets")
             .navigationDestination(for: ClipboardItem.self) { SnippetEditor(item: $0, model: model) }
             .toolbar {
@@ -58,6 +74,33 @@ struct ClipboardListView: View {
         }
     }
 
+    private func observeCurrentClipboard() {
+        removeExpiredRecentCopy()
+        let pasteboard = UIPasteboard.general
+        let count = pasteboard.changeCount
+        if count != clipboardLastSeenChangeCount {
+            clipboardLastSeenChangeCount = count
+            clipboardLastSeenTime = Date().timeIntervalSince1970
+            // Reading another app's pasteboard can trigger the iOS paste-permission prompt.
+            // Don't automatically add the preview to permanent saved snippets or Google Drive.
+            if let copied = pasteboard.string, !copied.isEmpty {
+                recentCopiedText = copied
+                recentCopiedAt = Date()
+            } else {
+                recentCopiedText = nil
+                recentCopiedAt = nil
+            }
+        }
+    }
+
+    private func removeExpiredRecentCopy() {
+        guard let last = recentCopiedAt else { return }
+        if Date().timeIntervalSince(last) >= recentCopyLifetime {
+            recentCopiedText = nil
+            recentCopiedAt = nil
+        }
+    }
+
     private func saveFromClipboard() {
         let text = UIPasteboard.general.string ?? UIPasteboard.general.url?.absoluteString
         guard let text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
@@ -69,6 +112,24 @@ struct ClipboardListView: View {
 
     private var snippetList: some View {
         List {
+            if model.isUsingLocalOnlyStorage {
+                Section {
+                    Label("Local-only mode: saved snippets work here, but the keyboard needs App Group signing to access them.", systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.orange)
+                }
+            }
+            if let recentCopiedText, let recentCopiedAt,
+               Date().timeIntervalSince(recentCopiedAt) < recentCopyLifetime {
+                Section("Latest copied text · disappears after 1 hour") {
+                    HStack {
+                        Text(recentCopiedText).lineLimit(3)
+                        Spacer()
+                        Button("Save") { model.add(recentCopiedText) }
+                            .buttonStyle(.bordered)
+                    }
+                    .accessibilityIdentifier("appRecentCopiedText")
+                }
+            }
             if hasCompletedOnboarding, let error = model.errorMessage {
                 Section { Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.red) }
             }
