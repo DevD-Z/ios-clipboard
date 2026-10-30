@@ -37,7 +37,7 @@ final class StoredClipboardItem {
     var text: String = ""
     var createdAt: Date = Date.now
     var isFavorite: Bool = false
-    var modifiedAt: Date = .now
+    var modifiedAt: Date = Date.now
     var isDeleted: Bool = false
 
     init(item: ClipboardItem) {
