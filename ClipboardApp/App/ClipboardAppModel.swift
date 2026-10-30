@@ -16,10 +16,17 @@ final class ClipboardAppModel: ObservableObject {
 
     @Published private(set) var isUsingLocalOnlyStorage = false
 
+    /// The Google/App Group-only build intentionally does not ship CloudKit entitlements.
+    var isCloudSyncSupported: Bool {
+        (Bundle.main.object(forInfoDictionaryKey: "ClipboardCloudKitSupported") as? Bool) ?? true
+    }
+
     init(store injectedStore: ClipboardStore? = nil) {
+        let cloudSupported = (Bundle.main.object(forInfoDictionaryKey: "ClipboardCloudKitSupported") as? Bool) ?? true
+        let cloudSyncRequested = UserDefaults.standard.bool(forKey: AppGroup.cloudSyncPreferenceKey)
         let sharedStore = try? ClipboardStore(
             access: .readWrite,
-            cloudSyncEnabled: UserDefaults.standard.bool(forKey: AppGroup.cloudSyncPreferenceKey)
+            cloudSyncEnabled: cloudSupported && cloudSyncRequested
         )
         // No App Group entitlement is present in some re-signed IPA builds.
         // Keep the app usable without ever pretending that the keyboard can share this fallback.
@@ -29,11 +36,10 @@ final class ClipboardAppModel: ObservableObject {
             containerURL: localURL, access: .readWrite, cloudSyncEnabled: false
         )
         let localOnly = injectedStore == nil && sharedStore == nil
-        let cloudSyncRequested = UserDefaults.standard.bool(forKey: AppGroup.cloudSyncPreferenceKey)
         // Initialize all required stored properties before reading any self properties.
         self.store = resolvedStore
         self.isUsingLocalOnlyStorage = localOnly
-        self.isCloudSyncEnabled = !localOnly && cloudSyncRequested
+        self.isCloudSyncEnabled = cloudSupported && !localOnly && cloudSyncRequested
         if localOnly {
             errorMessage = nil
         } else if injectedStore == nil, let shared = sharedStore {
@@ -98,6 +104,10 @@ final class ClipboardAppModel: ObservableObject {
     }
 
     func setCloudSyncEnabled(_ enabled: Bool) {
+        if enabled && !isCloudSyncSupported {
+            cloudSyncErrorMessage = "This build supports App Group and Google Drive without iCloud. Use the CloudKit signed workflow to enable iCloud."
+            return
+        }
         if isUsingLocalOnlyStorage {
             cloudSyncErrorMessage = "App Group signing is missing. Local saving works, but iCloud and the keyboard need a properly signed App Group."
             return

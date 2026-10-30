@@ -224,7 +224,12 @@ final class KeyboardViewController: UIInputViewController {
             store = nil
             allItems = []
             visibleItems = []
-            showStatus(error.localizedDescription)
+            let groupMissing = FileManager.default.containerURL(
+                forSecurityApplicationGroupIdentifier: AppGroup.identifier
+            ) == nil
+            showStatus(groupMissing
+                ? "App Group signing is required for saved snippets."
+                : error.localizedDescription)
         }
         globeButton.isHidden = !needsInputModeSwitchKey
         saveFromClipboardButton.isHidden = !hasFullAccess || store == nil
@@ -262,9 +267,13 @@ final class KeyboardViewController: UIInputViewController {
         let isEmpty = visibleItems.isEmpty
         emptyLabel.isHidden = !isEmpty
         if isEmpty {
-            emptyLabel.text = String(localized: sectionControl.selectedSegmentIndex == Section.favorites.rawValue
-                ? "No favorite snippets."
-                : "Save from clipboard or create snippets in the app.")
+            if store == nil {
+                emptyLabel.text = "Saved snippets are unavailable until the app and keyboard are signed with the same App Group."
+            } else {
+                emptyLabel.text = String(localized: sectionControl.selectedSegmentIndex == Section.favorites.rawValue
+                    ? "No favorite snippets."
+                    : "Save from clipboard or create snippets in the app.")
+            }
         }
     }
 

@@ -170,6 +170,7 @@ struct SettingsView: View {
     @ViewBuilder
     private var iCloudSection: some View {
         Section {
+            if model.isCloudSyncSupported {
             Toggle(
                 "Sync with iCloud",
                 isOn: Binding(
@@ -179,6 +180,11 @@ struct SettingsView: View {
             )
             .disabled(model.isChangingCloudSync)
             .accessibilityIdentifier("settingsICloudSyncToggle")
+            } else {
+                Label("Not included in this build", systemImage: "icloud.slash")
+                Text("Local storage, keyboard sharing and Google Drive do not require iCloud.")
+                    .font(.footnote)
+            }
         } header: {
             Text("iCloud (Optional)")
         } footer: {

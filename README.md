@@ -73,6 +73,23 @@ capabilities, provisioning profiles for the app and keyboard extension, and sche
 - **Saved Snippets:** created with **+** or an explicit **Paste and save** action, stored independently in the snippet database. Saved items do not expire after one hour and can be manually edited, favorited, deleted, backed up or synced when those options are enabled.
 - Saving a snippet cannot restart the temporary countdown; viewing the temporary preview cannot save a snippet. The two lists may contain the same text but are not linked.
 
+## Signed keyboard build (App Group, no iCloud)
+
+If the keyboard displays **Shared storage is unavailable**, the installed IPA lacks a
+usable **App Group** entitlement. A working app-only local fallback cannot be read
+by a separate keyboard extension. Codemagic now includes a
+**Signed App Group and Google (No iCloud)** workflow to support saved snippets in
+both places without requiring a CloudKit container. It still requires valid Apple
+Developer provisioning profiles for **both** the app and its keyboard extension,
+sharing `group.com.iosclipboard.shared`.
+
+**Unsigned IPA builds will not fix this problem**, even if the app itself saves
+successfully. An external re-signing service must also preserve matching App Group
+entitlements and the original Bundle IDs. After installing the correctly signed
+IPA, remove and re-add the Clipboard keyboard in iOS Settings if iOS still shows
+an old **Recent** tab rather than the current **Saved** tab. Back up snippets before
+uninstalling or replacing the app.
+
 ## Google Drive Auto Sync
 
 The optional Google integration uses the official GoogleSignIn Swift package and the

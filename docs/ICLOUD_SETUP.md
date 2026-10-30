@@ -41,6 +41,30 @@ If you changed identifiers, update them in all of these files:
 and update compatibility.** Changing the App Group moves the shared storage location,
 and changing the CloudKit container changes the sync database. Back up snippets first.
 
+## Google Drive + App Group only (no iCloud)
+
+For a keyboard that can access saved snippets without iCloud, use the Codemagic
+workflow **iOS Clipboard - Signed App Group and Google (No iCloud)**.
+
+- Register an explicit main App ID `com.iosclipboard.app` and keyboard App ID
+  `com.iosclipboard.app.keyboard` with your Apple Developer team, or update
+  the source Bundle IDs and Google OAuth client to match your own registered IDs.
+- Register App Group `group.com.iosclipboard.shared`, enable it for **both**
+  App IDs, and generate matching provisioning profiles for both targets.
+- This workflow removes the main app's CloudKit capability *only in the build
+  workspace*, leaving the checked-in source intact. The iCloud switch is disabled
+  for this build; local saving, the keyboard and Google Drive remain separate.
+- Download/install the **signed** IPA. An unsigned IPA or a third-party re-sign
+  that drops the App Group entitlement cannot make the keyboard share saved items.
+- Codemagic verifies the App Group entitlement inside the signed IPA before
+  marking its build successful.
+
+The original **Signed App Group and iCloud (Development)** workflow remains
+available if you have configured a CloudKit container and its provisioning rights.
+
+Do not change Bundle IDs on an installed app without exporting a backup first.
+Different IDs can result in iOS treating the new build as a new app.
+
 ## Step 2: Configure signing in Codemagic
 
 In **Codemagic > Team settings > codemagic.yaml settings > Code signing identities**:
