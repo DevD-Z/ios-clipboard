@@ -11,10 +11,11 @@ and the Google Drive REST API's **private appDataFolder**, with the narrow
 3. Configure the OAuth consent screen. Set the audience/test users as required.
 4. Create an **OAuth Client ID** of type **iOS**, for the actual installed app's
    Bundle ID (currently `com.iosclipboard.app` unless you changed it for signing).
-5. Edit `ClipboardApp/Info.plist`:
-   - Replace `YOUR_IOS_CLIENT_ID.apps.googleusercontent.com` with your exact iOS Client ID.
-   - Replace `com.googleusercontent.apps.REPLACE_WITH_YOUR_CLIENT_ID` with the **iOS URL scheme**
-     provided by Google Cloud (the reversed client ID).
+5. In Codemagic, add an application environment variable named `GOOGLE_IOS_CLIENT_ID`
+   containing the full iOS OAuth Client ID (e.g. `1234567890-example.apps.googleusercontent.com`).
+   Both workflows now generate the matching `GIDClientID` and reversed URL scheme
+   in `ClipboardApp/Info.plist` at build time. No repository editing is required.
+   Alternatively, configure the same two Info.plist entries manually.
 6. Rebuild a properly signed IPA. Google Sign-In uses iOS Keychain for account tokens.
    An unsigned IPA will not automatically have the signing/keychain/App Group privileges.
 7. In the app open **Settings > Google Drive Auto Sync > Connect Google Drive**.
@@ -81,3 +82,22 @@ original copy timestamp to other applications, so the one-hour interval is
 measured from Clipboard's first observation, not guaranteed from the exact time
 of copying. The preview requires pasteboard access and iOS can show a permission
 prompt. Copying while the application is suspended cannot be monitored live.
+
+## Why a successful unsigned build still shows warnings
+
+Codemagic's **Unsigned IPA** workflow deliberately disables Apple code signing.
+An unsigned app (or an IPA re-signed without the required App Group in both
+provisioning profiles) cannot share its snippet database with the keyboard.
+
+Use the **Signed App Group and iCloud (Development)** workflow after supplying
+Apple signing profiles and a certificate. Its entitlement validation step
+now fails if either signed target lacks `group.com.iosclipboard.shared`.
+
+The Google account setup is **independent of Apple iCloud**, but Google OAuth
+still requires a registered iOS Client ID and URL scheme and a signed app for
+reliable keychain-based sign-in. Changing Swift code or hiding the warning
+cannot create these external credentials.
+
+When the system pasteboard contains no string, **Save from clipboard** cannot
+save a previously created snippet. Copy text in another app or use **+**
+to create a snippet manually. iOS can show a paste access permission request.

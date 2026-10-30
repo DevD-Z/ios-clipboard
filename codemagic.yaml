@@ -18,6 +18,33 @@ workflows:
           test -f "$CM_BUILD_DIR/$XCODE_PROJECT/project.pbxproj"
           xcodebuild -list -project "$CM_BUILD_DIR/$XCODE_PROJECT"
 
+      - name: Configure Google Sign-In (optional OAuth client)
+        script: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          import plistlib
+          import re
+          from pathlib import Path
+
+          client = os.environ.get("GOOGLE_IOS_CLIENT_ID", "").strip()
+          if not client:
+              print("Google Sign-In: no GOOGLE_IOS_CLIENT_ID configured. Google sync remains disabled.")
+          else:
+              suffix = ".apps.googleusercontent.com"
+              if not re.fullmatch(r"[0-9]+-[a-zA-Z0-9_-]+[.]apps[.]googleusercontent[.]com", client):
+                  raise SystemExit("GOOGLE_IOS_CLIENT_ID is not a valid iOS OAuth client ID.")
+              scheme = "com.googleusercontent.apps." + client[:-len(suffix)]
+              plist_path = Path(os.environ["CM_BUILD_DIR"]) / "ClipboardApp/Info.plist"
+              with plist_path.open("rb") as input_file:
+                  info = plistlib.load(input_file)
+              info["GIDClientID"] = client
+              info["CFBundleURLTypes"] = [{"CFBundleURLSchemes": [scheme]}]
+              with plist_path.open("wb") as output_file:
+                  plistlib.dump(info, output_file)
+              print("Google Sign-In: client ID and reversed URL scheme configured.")
+          PY
+
       - name: Build app and keyboard extension (unsigned)
         script: |
           set -euo pipefail
@@ -59,10 +86,12 @@ workflows:
       - /tmp/xcodebuild_logs/*.log
 
   ios-clipboard-icloud-development:
-    name: iOS Clipboard - Signed iCloud (Development)
+    name: iOS Clipboard - Signed App Group and iCloud (Development)
     instance_type: mac_mini_m2
     max_build_duration: 60
 
+    # Required for app <-> keyboard shared storage. Unsigned/re-signed builds may lose the App Group.
+    # Set GOOGLE_IOS_CLIENT_ID in the Codemagic environment to enable Google Sign-In.
     # Requires Apple Developer membership and signing identities configured in Codemagic.
     # The bundle ID, both provisioning profiles, App Group, and CloudKit container must
     # belong to your Apple Developer team; see docs/ICLOUD_SETUP.md.
@@ -83,6 +112,33 @@ workflows:
           test -f "$CM_BUILD_DIR/$XCODE_PROJECT/project.pbxproj"
           xcodebuild -list -project "$CM_BUILD_DIR/$XCODE_PROJECT"
 
+      - name: Configure Google Sign-In (optional OAuth client)
+        script: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          import plistlib
+          import re
+          from pathlib import Path
+
+          client = os.environ.get("GOOGLE_IOS_CLIENT_ID", "").strip()
+          if not client:
+              print("Google Sign-In: no GOOGLE_IOS_CLIENT_ID configured. Google sync remains disabled.")
+          else:
+              suffix = ".apps.googleusercontent.com"
+              if not re.fullmatch(r"[0-9]+-[a-zA-Z0-9_-]+[.]apps[.]googleusercontent[.]com", client):
+                  raise SystemExit("GOOGLE_IOS_CLIENT_ID is not a valid iOS OAuth client ID.")
+              scheme = "com.googleusercontent.apps." + client[:-len(suffix)]
+              plist_path = Path(os.environ["CM_BUILD_DIR"]) / "ClipboardApp/Info.plist"
+              with plist_path.open("rb") as input_file:
+                  info = plistlib.load(input_file)
+              info["GIDClientID"] = client
+              info["CFBundleURLTypes"] = [{"CFBundleURLSchemes": [scheme]}]
+              with plist_path.open("wb") as output_file:
+                  plistlib.dump(info, output_file)
+              print("Google Sign-In: client ID and reversed URL scheme configured.")
+          PY
+
       - name: Configure signing for app and keyboard extension
         script: xcode-project use-profiles
 
@@ -92,6 +148,28 @@ workflows:
           xcode-project build-ipa \
             --project "$CM_BUILD_DIR/$XCODE_PROJECT" \
             --scheme "$XCODE_SCHEME"
+
+      - name: Validate signed App Group sharing capability
+        script: |
+          set -euo pipefail
+          IPA="$(find "$CM_BUILD_DIR/build/ios/ipa" -maxdepth 1 -type f -name '*.ipa' -print -quit)"
+          test -f "$IPA"
+          STAGING="$(mktemp -d)"
+          trap 'rm -rf "$STAGING"' EXIT
+          unzip -q "$IPA" -d "$STAGING"
+          APP="$STAGING/Payload/Clipboard.app"
+          EXT="$APP/PlugIns/ClipboardKeyboard.appex"
+          for TARGET in "$APP" "$EXT"; do
+            test -d "$TARGET" || { echo "Missing signed target: $TARGET"; exit 1; }
+            ENTITLEMENTS="$STAGING/$(basename "$TARGET").plist"
+            codesign -d --entitlements - "$TARGET" > "$ENTITLEMENTS" 2>/dev/null
+            /usr/libexec/PlistBuddy -c "Print :com.apple.security.application-groups" "$ENTITLEMENTS" | grep -Fq "group.com.iosclipboard.shared" || {
+              echo "App Group entitlement missing from $(basename "$TARGET")"
+              echo "Enable the same App Group in both Apple Developer provisioning profiles before installing."
+              exit 1
+            }
+          done
+          echo "Both signed targets include the required App Group."
 
       - name: Verify keyboard extension is packaged
         script: |

@@ -9,6 +9,7 @@ struct ClipboardListView: View {
     @State private var favoritesOnly = false
     @State private var showingNewItem = false
     @State private var showingSettings = false
+    @State private var clipboardNotice: String?
     @State private var recentCopiedText: String?
     @State private var recentCopiedAt: Date?
     @AppStorage("clipboardLastSeenChangeCount") private var clipboardLastSeenChangeCount = -1
@@ -76,6 +77,14 @@ struct ClipboardListView: View {
                         .accessibilityIdentifier("appNewSnippetControl")
                 }
             }
+            .alert("Clipboard is empty", isPresented: Binding(
+                get: { clipboardNotice != nil },
+                set: { if !$0 { clipboardNotice = nil } }
+            )) {
+                Button("OK", role: .cancel) { clipboardNotice = nil }
+            } message: {
+                Text(clipboardNotice ?? "")
+            }
             .sheet(isPresented: $showingNewItem) { NewSnippetSheet(model: model) }
             .sheet(isPresented: $showingSettings) { SettingsView(model: model, googleSync: googleSync) }
             .sheet(isPresented: Binding(get: { !hasCompletedOnboarding }, set: { hasCompletedOnboarding = !$0 })) { OnboardingView() }
@@ -119,9 +128,11 @@ struct ClipboardListView: View {
     private func saveFromClipboard() {
         let text = UIPasteboard.general.string ?? UIPasteboard.general.url?.absoluteString
         guard let text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            model.errorMessage = String(localized: "Clipboard has no text to save.")
+            clipboardNotice = "Copy some text in another app first, then return and tap Save from clipboard. Or use + to create a snippet manually."
             return
         }
+        clipboardNotice = nil
+        model.errorMessage = nil
         model.add(text)
     }
 
@@ -129,8 +140,9 @@ struct ClipboardListView: View {
         List {
             if model.isUsingLocalOnlyStorage {
                 Section {
-                    Label("Local-only mode: saved snippets work here, but the keyboard needs App Group signing to access them.", systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.orange)
+                    Label("Saved locally · keyboard sharing unavailable", systemImage: "iphone")
+                        .foregroundStyle(.secondary)
+                        .font(.footnote)
                 }
             }
             if let recentCopiedText, let recentCopiedAt,

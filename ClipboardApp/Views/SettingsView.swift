@@ -110,9 +110,11 @@ struct SettingsView: View {
                     .disabled(googleSync.isBusy)
                 }
             } else {
-                Label("Google OAuth setup required", systemImage: "exclamationmark.circle")
-                    .foregroundStyle(.orange)
-                Text("Add an iOS OAuth Client ID and reversed URL scheme to ClipboardApp/Info.plist before building.")
+                Label("Google account not configured", systemImage: "cloud.slash")
+                    .foregroundStyle(.secondary)
+                Text("Add GOOGLE_IOS_CLIENT_ID in Codemagic, then rebuild the app.")
+                    .font(.footnote)
+                Link("Google OAuth setup guide", destination: URL(string: "https://github.com/DevD-Z/ios-clipboard/blob/main/docs/GOOGLE_DRIVE_AUTO_SYNC.md")!)
             }
 
             Text(googleSync.status)
@@ -129,13 +131,14 @@ struct SettingsView: View {
     private var storageSection: some View {
         Section("Storage") {
             if model.isUsingLocalOnlyStorage {
-                Label("Local storage fallback is active", systemImage: "exclamationmark.triangle")
-                    .foregroundStyle(.orange)
-                Text("This IPA is missing the shared App Group entitlement. Saving inside the app works, but the keyboard cannot read these items. Install a build signed with matching App Group profiles to enable sharing.")
+                Label("Local storage works on this iPhone", systemImage: "iphone")
+                    .foregroundStyle(.secondary)
+                Text("To access these snippets from the keyboard, install a signed build with App Groups enabled for both targets.")
+                    .font(.footnote)
             }
 
             Label("Saved locally on this device", systemImage: "iphone")
-            Text("iCloud is optional. Your snippets stay on this device unless you enable iCloud Sync or export a backup.")
+            Text("Snippets are stored here by default. Cloud sync and backup are optional.")
         }
     }
 
@@ -160,7 +163,7 @@ struct SettingsView: View {
         } header: {
             Text("Backup & Restore")
         } footer: {
-            Text("Manual backup only, not automatic Google sync. Install Google Drive, sign in, and enable it in the iOS Files app to save or open a backup there. Imported snippets are merged with existing snippets. Backup files contain unencrypted text.")
+            Text("These are manual Files backups, separate from Google Drive Auto Sync. Backups contain unencrypted text.")
         }
     }
 

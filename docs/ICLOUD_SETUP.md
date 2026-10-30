@@ -49,7 +49,9 @@ In **Codemagic > Team settings > codemagic.yaml settings > Code signing identiti
 2. Add/fetch **Development** provisioning profiles for the main app and keyboard extension.
 3. Check that the main profile includes CloudKit and App Groups, and the extension profile
    includes the same App Group.
-4. Use the `iOS Clipboard - Signed iCloud (Development)` workflow.
+4. Use the `iOS Clipboard - Signed App Group and iCloud (Development)` workflow.
+5. This workflow checks that both targets' signed entitlements contain
+   `group.com.iosclipboard.shared`. A build fails clearly when either does not.
 
 Codemagic executes `xcode-project use-profiles` and then `xcode-project build-ipa` to
 build a signed IPA. It cannot synthesize Apple-approved entitlements or signing profiles.

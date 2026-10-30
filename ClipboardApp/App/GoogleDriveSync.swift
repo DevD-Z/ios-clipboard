@@ -42,8 +42,18 @@ final class GoogleDriveSyncModel: ObservableObject {
     private var debounceTask: Task<Void, Never>?
 
     var isConfigured: Bool {
-        guard let id = Bundle.main.object(forInfoDictionaryKey: "GIDClientID") as? String else { return false }
-        return id.hasSuffix(".apps.googleusercontent.com") && !id.contains("YOUR_")
+        guard let id = Bundle.main.object(forInfoDictionaryKey: "GIDClientID") as? String,
+              id.hasSuffix(".apps.googleusercontent.com"),
+              !id.contains("YOUR_"),
+              let component = id.components(separatedBy: ".apps.googleusercontent.com").first,
+              !component.isEmpty,
+              let urlTypes = Bundle.main.object(forInfoDictionaryKey: "CFBundleURLTypes") as? [[String: Any]]
+        else { return false }
+        let expectedScheme = "com.googleusercontent.apps." + component
+        return urlTypes.contains { type in
+            let schemes = type["CFBundleURLSchemes"] as? [String] ?? []
+            return schemes.contains(expectedScheme)
+        }
     }
 
     func restoreIfNeeded(model: ClipboardAppModel) {
