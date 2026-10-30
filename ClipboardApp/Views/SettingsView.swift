@@ -15,118 +15,193 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                Section("Google Drive Auto Sync") {
-                    if googleSync.isConfigured {
-                        if googleSync.isSignedIn {
-                            Label(googleSync.accountEmail ?? "Connected to Google", systemImage: "person.crop.circle")
-                            Toggle("Auto Sync", isOn: Binding(
-                                get: { googleSync.isEnabled },
-                                set: { googleSync.setEnabled($0, model: model) }
-                            ))
-                            Button("Sync Now") { googleSync.syncNow(model: model) }
-                                .disabled(googleSync.isBusy)
-                            Button("Disconnect Google Account", role: .destructive) {
-                                googleSync.signOut()
-                            }
-                        } else {
-                            Button("Connect Google Drive") {
-                                googleSync.signIn(model: model)
-                            }
-                            .disabled(googleSync.isBusy)
-                        }
-                    } else {
-                        Label("Google OAuth setup required", systemImage: "exclamationmark.circle")
-                            .foregroundStyle(.orange)
-                        Text("Add an iOS OAuth Client ID and reversed URL scheme to ClipboardApp/Info.plist before building.")
-                    }
-                    Text(googleSync.status).font(.footnote).foregroundStyle(.secondary)
-                } footer: {
-                    Text("Sync runs on changes while the app is active and when it reopens. iOS does not guarantee continuous background sync. Google Drive stores an app-private JSON replica; iCloud is optional.")
-                }
-                Section("Storage") {
-                    if model.isUsingLocalOnlyStorage {
-                        Label("Local storage fallback is active", systemImage: "exclamationmark.triangle")
-                            .foregroundStyle(.orange)
-                        Text("This IPA is missing the shared App Group entitlement. Saving inside the app works, but the keyboard cannot read these items. Install a build signed with matching App Group profiles to enable sharing.")
-                    }
-                    Label("Saved locally on this device", systemImage: "iphone")
-                    Text("iCloud is optional. Your snippets stay on this device unless you enable iCloud Sync or export a backup.")
-                }
-                Section {
-                    Button {
-                        exportBackup()
-                    } label: {
-                        Label("Export backup to Files / Google Drive", systemImage: "square.and.arrow.up")
-                    }
-                    .disabled(isPreparingBackup || isImportingBackup)
-                    .accessibilityIdentifier("settingsExportBackupButton")
+            settingsList
+        }
+    }
 
-                    Button {
-                        showingBackupImporter = true
-                    } label: {
-                        Label("Import backup from Files / Google Drive", systemImage: "square.and.arrow.down")
+    private var settingsList: some View {
+        List {
+            googleDriveSection
+            storageSection
+            backupSection
+            iCloudSection
+            keyboardSection
+            privacySection
+        }
+        .navigationTitle("Settings")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Done") { dismiss() }
+                    .accessibilityIdentifier("settingsDoneButton")
+            }
+        }
+        .fileExporter(
+            isPresented: $showingBackupExporter,
+            document: backupDocument,
+            contentType: .json,
+            defaultFilename: "Clipboard-Backup"
+        ) { result in
+            if case let .failure(error) = result {
+                backupMessage = error.localizedDescription
+            }
+            backupDocument = nil
+        }
+        .fileImporter(
+            isPresented: $showingBackupImporter,
+            allowedContentTypes: [.json]
+        ) { result in
+            importBackup(result)
+        }
+        .alert("Backup & Restore", isPresented: backupAlertPresented) {
+            Button("OK", role: .cancel) { backupMessage = nil }
+        } message: {
+            Text(backupMessage ?? "")
+        }
+        .alert("iCloud Sync", isPresented: cloudAlertPresented) {
+            Button("OK", role: .cancel) { model.cloudSyncErrorMessage = nil }
+        } message: {
+            Text(model.cloudSyncErrorMessage ?? "")
+        }
+    }
+
+    private var backupAlertPresented: Binding<Bool> {
+        Binding(
+            get: { backupMessage != nil },
+            set: { if !$0 { backupMessage = nil } }
+        )
+    }
+
+    private var cloudAlertPresented: Binding<Bool> {
+        Binding(
+            get: { model.cloudSyncErrorMessage != nil },
+            set: { if !$0 { model.cloudSyncErrorMessage = nil } }
+        )
+    }
+
+    private var googleAutoSyncBinding: Binding<Bool> {
+        Binding(
+            get: { googleSync.isEnabled },
+            set: { googleSync.setEnabled($0, model: model) }
+        )
+    }
+
+    @ViewBuilder
+    private var googleDriveSection: some View {
+        Section {
+            if googleSync.isConfigured {
+                if googleSync.isSignedIn {
+                    Label(
+                        googleSync.accountEmail ?? "Connected to Google",
+                        systemImage: "person.crop.circle"
+                    )
+                    Toggle("Auto Sync", isOn: googleAutoSyncBinding)
+                    Button("Sync Now") {
+                        googleSync.syncNow(model: model)
                     }
-                    .disabled(isPreparingBackup || isImportingBackup)
-                    .accessibilityIdentifier("settingsImportBackupButton")
-                } header: {
-                    Text("Backup & Restore")
-                } footer: {
-                    Text("Manual backup only, not automatic Google sync. Install Google Drive, sign in, and enable it in the iOS Files app to save or open a backup there. Imported snippets are merged with existing snippets. Backup files contain unencrypted text.")
-                }
-                Section {
-                    Toggle("Sync with iCloud", isOn: Binding(
-                        get: { model.isCloudSyncEnabled },
-                        set: { model.setCloudSyncEnabled($0) }
-                    ))
-                    .disabled(model.isChangingCloudSync)
-                    .accessibilityIdentifier("settingsICloudSyncToggle")
-                } header: {
-                    Text("iCloud (Optional)")
-                } footer: {
-                    Text("Optional. Sync saved snippets across your devices signed in to the same Apple Account. Turning this off keeps snippets on this device and stops future syncing; copies already in iCloud remain there.")
-                }
-                Section("Keyboard") {
-                    Label("Add Clipboard in Settings > General > Keyboard > Keyboards > Add New Keyboard.", systemImage: "keyboard")
-                    Label("Use the globe key to switch to Clipboard.", systemImage: "globe")
-                    Label("Clipboard uses Full Access to save from clipboard, favorite, or delete snippets from the keyboard. The keyboard itself does not connect to iCloud.", systemImage: "lock")
-                    Button("Open Settings") {
-                        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
-                        UIApplication.shared.open(url)
+                    .disabled(googleSync.isBusy)
+
+                    Button("Disconnect Google Account", role: .destructive) {
+                        googleSync.signOut()
                     }
-                    .accessibilityIdentifier("settingsOpenSystemSettingsButton")
+                } else {
+                    Button("Connect Google Drive") {
+                        googleSync.signIn(model: model)
+                    }
+                    .disabled(googleSync.isBusy)
                 }
-                Section("Privacy") {
-                    Text("Snippets stay on this device unless you turn on iCloud sync or manually export a backup.")
-                    Text("Clipboard has no app account, analytics, or advertising. iCloud sync uses your private iCloud database. Exported backup files are unencrypted, so only save them in a location you trust.")
-                }
+            } else {
+                Label("Google OAuth setup required", systemImage: "exclamationmark.circle")
+                    .foregroundStyle(.orange)
+                Text("Add an iOS OAuth Client ID and reversed URL scheme to ClipboardApp/Info.plist before building.")
             }
-            .navigationTitle("Settings")
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Done") { dismiss() }.accessibilityIdentifier("settingsDoneButton") } }
-            .fileExporter(
-                isPresented: $showingBackupExporter,
-                document: backupDocument,
-                contentType: .json,
-                defaultFilename: "Clipboard-Backup"
-            ) { result in
-                if case let .failure(error) = result { backupMessage = error.localizedDescription }
-                backupDocument = nil
+
+            Text(googleSync.status)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        } header: {
+            Text("Google Drive Auto Sync")
+        } footer: {
+            Text("Sync runs on changes while the app is active and when it reopens. iOS does not guarantee continuous background sync. Google Drive stores an app-private JSON replica; iCloud is optional.")
+        }
+    }
+
+    @ViewBuilder
+    private var storageSection: some View {
+        Section("Storage") {
+            if model.isUsingLocalOnlyStorage {
+                Label("Local storage fallback is active", systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.orange)
+                Text("This IPA is missing the shared App Group entitlement. Saving inside the app works, but the keyboard cannot read these items. Install a build signed with matching App Group profiles to enable sharing.")
             }
-            .fileImporter(isPresented: $showingBackupImporter, allowedContentTypes: [.json]) { result in
-                importBackup(result)
+
+            Label("Saved locally on this device", systemImage: "iphone")
+            Text("iCloud is optional. Your snippets stay on this device unless you enable iCloud Sync or export a backup.")
+        }
+    }
+
+    @ViewBuilder
+    private var backupSection: some View {
+        Section {
+            Button {
+                exportBackup()
+            } label: {
+                Label("Export backup to Files / Google Drive", systemImage: "square.and.arrow.up")
             }
-            .alert("Backup & Restore", isPresented: Binding(
-                get: { backupMessage != nil },
-                set: { if !$0 { backupMessage = nil } }
-            )) {
-                Button("OK", role: .cancel) { backupMessage = nil }
-            } message: { Text(backupMessage ?? "") }
-            .alert("iCloud Sync", isPresented: Binding(
-                get: { model.cloudSyncErrorMessage != nil },
-                set: { if !$0 { model.cloudSyncErrorMessage = nil } }
-            )) {
-                Button("OK", role: .cancel) { model.cloudSyncErrorMessage = nil }
-            } message: { Text(model.cloudSyncErrorMessage ?? "") }
+            .disabled(isPreparingBackup || isImportingBackup)
+            .accessibilityIdentifier("settingsExportBackupButton")
+
+            Button {
+                showingBackupImporter = true
+            } label: {
+                Label("Import backup from Files / Google Drive", systemImage: "square.and.arrow.down")
+            }
+            .disabled(isPreparingBackup || isImportingBackup)
+            .accessibilityIdentifier("settingsImportBackupButton")
+        } header: {
+            Text("Backup & Restore")
+        } footer: {
+            Text("Manual backup only, not automatic Google sync. Install Google Drive, sign in, and enable it in the iOS Files app to save or open a backup there. Imported snippets are merged with existing snippets. Backup files contain unencrypted text.")
+        }
+    }
+
+    @ViewBuilder
+    private var iCloudSection: some View {
+        Section {
+            Toggle(
+                "Sync with iCloud",
+                isOn: Binding(
+                    get: { model.isCloudSyncEnabled },
+                    set: { model.setCloudSyncEnabled($0) }
+                )
+            )
+            .disabled(model.isChangingCloudSync)
+            .accessibilityIdentifier("settingsICloudSyncToggle")
+        } header: {
+            Text("iCloud (Optional)")
+        } footer: {
+            Text("Optional. Sync saved snippets across your devices signed in to the same Apple Account. Turning this off keeps snippets on this device and stops future syncing; copies already in iCloud remain there.")
+        }
+    }
+
+    @ViewBuilder
+    private var keyboardSection: some View {
+        Section("Keyboard") {
+            Label("Add Clipboard in Settings > General > Keyboard > Keyboards > Add New Keyboard.", systemImage: "keyboard")
+            Label("Use the globe key to switch to Clipboard.", systemImage: "globe")
+            Label("Clipboard uses Full Access to save from clipboard, favorite, or delete snippets from the keyboard. The keyboard itself does not connect to iCloud.", systemImage: "lock")
+            Button("Open Settings") {
+                guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+                UIApplication.shared.open(url)
+            }
+            .accessibilityIdentifier("settingsOpenSystemSettingsButton")
+        }
+    }
+
+    @ViewBuilder
+    private var privacySection: some View {
+        Section("Privacy") {
+            Text("Snippets stay on this device unless you turn on iCloud sync, enable Google Drive Auto Sync, or manually export a backup.")
+            Text("Clipboard has no advertising. iCloud sync uses your private iCloud database. Google Drive Auto Sync uses your Google account's app-private data folder. Exported backup files are unencrypted, so only save them in a location you trust.")
         }
     }
 
@@ -154,14 +229,17 @@ struct SettingsView: View {
             do {
                 let granted = url.startAccessingSecurityScopedResource()
                 defer { if granted { url.stopAccessingSecurityScopedResource() } }
+
                 let fileSize = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
                 guard fileSize <= ClipboardBackupArchive.maximumBytes else {
                     throw ClipboardBackupError.fileTooLarge
                 }
+
                 let data = try Data(contentsOf: url)
                 guard data.count <= ClipboardBackupArchive.maximumBytes else {
                     throw ClipboardBackupError.fileTooLarge
                 }
+
                 isImportingBackup = true
                 model.importBackup(data: data) { result in
                     isImportingBackup = false
