@@ -28,11 +28,13 @@ final class ClipboardAppModel: ObservableObject {
         let resolvedStore = injectedStore ?? sharedStore ?? ClipboardStore(
             containerURL: localURL, access: .readWrite, cloudSyncEnabled: false
         )
+        let localOnly = injectedStore == nil && sharedStore == nil
+        let cloudSyncRequested = UserDefaults.standard.bool(forKey: AppGroup.cloudSyncPreferenceKey)
+        // Initialize all required stored properties before reading any self properties.
         self.store = resolvedStore
-        isUsingLocalOnlyStorage = injectedStore == nil && sharedStore == nil
-        isCloudSyncEnabled = !isUsingLocalOnlyStorage &&
-            UserDefaults.standard.bool(forKey: AppGroup.cloudSyncPreferenceKey)
-        if isUsingLocalOnlyStorage {
+        self.isUsingLocalOnlyStorage = localOnly
+        self.isCloudSyncEnabled = !localOnly && cloudSyncRequested
+        if localOnly {
             errorMessage = nil
         } else if injectedStore == nil, let shared = sharedStore {
             // Once a correctly signed App Group becomes available, keep previously
