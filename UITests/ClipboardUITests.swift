@@ -31,23 +31,23 @@ final class ClipboardUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "UI test snippet")).firstMatch.waitForExistence(timeout: 5))
     }
 
-    func testSpanishCoreLocalization() throws {
+    func testEnglishCoreLocalization() throws {
         app.terminate()
-        app.launchArguments = ["-UITestResetOnboarding", "-AppleLanguages", "(es)", "-AppleLocale", "es_ES"]
+        app.launchArguments = ["-UITestResetOnboarding", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launch()
 
         let pageTitle = app.staticTexts["onboardingPageTitle"]
         XCTAssertTrue(pageTitle.waitForExistence(timeout: 3), app.debugDescription)
-        XCTAssertEqual(pageTitle.label, "Tus textos, listos para usar")
+        XCTAssertEqual(pageTitle.label, "Your clipboard, ready to type")
         let onboardingButton = app.buttons["onboardingPrimaryButton"]
-        XCTAssertEqual(onboardingButton.label, "Continuar")
+        XCTAssertEqual(onboardingButton.label, "Continue")
         onboardingButton.tap(); onboardingButton.tap(); onboardingButton.tap()
 
         let saveFromClipboard = app.buttons["appSaveFromClipboardControl"]
         XCTAssertTrue(saveFromClipboard.waitForExistence(timeout: 3), app.debugDescription)
-        XCTAssertEqual(saveFromClipboard.label, "Guardar texto copiado")
-        XCTAssertEqual(app.buttons["appNewSnippetControl"].label, "Nuevo texto")
-        XCTAssertEqual(app.searchFields.firstMatch.placeholderValue, "Buscar textos")
+        XCTAssertEqual(saveFromClipboard.label, "Save from clipboard")
+        XCTAssertEqual(app.buttons["appNewSnippetControl"].label, "New Snippet")
+        XCTAssertEqual(app.searchFields.firstMatch.placeholderValue, "Search snippets")
     }
 
     func testICloudSyncIsOffByDefaultInAppSettings() throws {
@@ -59,7 +59,7 @@ final class ClipboardUITests: XCTestCase {
         let sync = app.switches["settingsICloudSyncToggle"]
         XCTAssertTrue(sync.waitForExistence(timeout: 5), app.debugDescription)
         XCTAssertEqual(sync.value as? String, "0")
-        XCTAssertTrue(["Sync with iCloud", "Sincronizar con iCloud"].contains(sync.label))
+        XCTAssertEqual(sync.label, "Sync with iCloud")
     }
 
     func testKeyboardExtensionSystemFlowAttempt() throws {
@@ -95,7 +95,7 @@ final class ClipboardUITests: XCTestCase {
         if settings.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Clipboard")).firstMatch.exists {
             try tap(anyOf: ["Clipboard"], in: settings)
         } else {
-            try tapContaining(anyOf: ["Add New Keyboard", "Añadir nuevo teclado"], in: settings)
+            try tapContaining(anyOf: ["Add New Keyboard"], in: settings)
             try tap(anyOf: ["Clipboard"], in: settings)
             // Recent Settings versions show an app-selection page first. Confirm that selection
             // before opening the resulting Clipboard keyboard row for its access setting.
@@ -319,7 +319,7 @@ final class ClipboardUITests: XCTestCase {
         if settings.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Clipboard")).firstMatch.exists {
             try tap(anyOf: ["Clipboard"], in: settings)
         } else {
-            try tapContaining(anyOf: ["Add New Keyboard", "Añadir nuevo teclado"], in: settings)
+            try tapContaining(anyOf: ["Add New Keyboard"], in: settings)
             try tap(anyOf: ["Clipboard"], in: settings)
             let done = settings.buttons.matching(NSPredicate(format: "label == %@ OR label == %@", "Done", "Hecho")).firstMatch
             if done.waitForExistence(timeout: 3) { done.tap() }

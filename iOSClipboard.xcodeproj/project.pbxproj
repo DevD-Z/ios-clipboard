@@ -90,7 +90,7 @@
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		PROJ = {isa = PBXProject; attributes = { BuildIndependentTargetsInParallel = 1; LastSwiftUpdateCheck = 2630; LastUpgradeCheck = 2630; TargetAttributes = { T001 = {CreatedOnToolsVersion = 26.3; SystemCapabilities = { com.apple.iCloud = { enabled = 1; }; com.apple.BackgroundModes = { enabled = 1; }; com.apple.Push = { enabled = 1; }; }; }; T002 = {CreatedOnToolsVersion = 26.3;}; T003 = {CreatedOnToolsVersion = 26.3;}; T004 = {CreatedOnToolsVersion = 26.3;}; }; }; buildConfigurationList = CLPROJ; compatibilityVersion = "Xcode 26.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, es, Base, ); mainGroup = GROOT; productRefGroup = GPROD; projectDirPath = ""; projectRoot = ""; targets = (T001, T002, T003, T004, ); };
+		PROJ = {isa = PBXProject; attributes = { BuildIndependentTargetsInParallel = 1; LastSwiftUpdateCheck = 2630; LastUpgradeCheck = 2630; TargetAttributes = { T001 = {CreatedOnToolsVersion = 26.3; SystemCapabilities = { com.apple.iCloud = { enabled = 1; }; com.apple.BackgroundModes = { enabled = 1; }; com.apple.Push = { enabled = 1; }; }; }; T002 = {CreatedOnToolsVersion = 26.3;}; T003 = {CreatedOnToolsVersion = 26.3;}; T004 = {CreatedOnToolsVersion = 26.3;}; }; }; buildConfigurationList = CLPROJ; compatibilityVersion = "Xcode 26.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base, ); mainGroup = GROOT; productRefGroup = GPROD; projectDirPath = ""; projectRoot = ""; targets = (T001, T002, T003, T004, ); };
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */

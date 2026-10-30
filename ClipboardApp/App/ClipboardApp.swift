@@ -62,6 +62,7 @@ struct IOSClipboardApp: App {
     var body: some Scene {
         WindowGroup {
             ClipboardListView(model: model)
+                .environment(\.locale, Locale(identifier: "en"))
                 .task { model.reload() }
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
                     model.reload()

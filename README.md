@@ -31,7 +31,7 @@
 - **Search.** Find a snippet by any word it contains.
 - **Works without Full Access.** The keyboard can always read and insert your snippets. Full Access only adds saving, favoriting, and deleting from the keyboard itself.
 - **Optional iCloud sync.** Off by default. When you turn it on, snippets sync through your private iCloud database to your devices signed in to the same Apple Account.
-- **Native and accessible.** Built from system components, with support for light and dark mode, Dynamic Type, VoiceOver labels, iPhone and iPad, and English and Spanish.
+- **Native and accessible.** Built from system components, with support for light and dark mode, Dynamic Type, VoiceOver labels, iPhone and iPad, with an English-only app interface.
 - **No account, analytics, or ads.**
 
 ## See it in action
@@ -54,6 +54,8 @@
     <td align="center"><sub>Settings and privacy</sub></td>
   </tr>
 </table>
+
+App-owned text is displayed in English. Apple's system Settings screens and permission prompts still follow the device language.
 
 ## Getting started
 
@@ -95,7 +97,7 @@ Things to be aware of:
 - **CloudKit** (through SwiftData) for the optional private sync
 - **Darwin notifications** so the app and the keyboard refresh each other
 - **XCTest** for the storage and UI tests
-- A **String Catalog** for English and Spanish
+- An **English-only String Catalog**
 
 No third-party packages.
 
@@ -116,7 +118,7 @@ Both targets compile the same `Shared/` sources and open the same database file.
 | `ClipboardApp/` | The containing app: snippet list, editor, settings, and onboarding |
 | `ClipboardKeyboard/` | The custom keyboard extension (`KeyboardViewController`) |
 | `Shared/` | The `ClipboardItem` model, `ClipboardStore` (SwiftData storage), and App Group constants |
-| `Resources/` | App icon and the English and Spanish String Catalog |
+| `Resources/` | English-only String Catalog |
 | `Tests/` | Storage unit tests |
 | `UITests/` | End-to-end UI tests, including the real keyboard in the Simulator |
 | `docs/APPLE_APIS.md` | The Apple APIs used, their minimum iOS versions, and fallbacks |
@@ -159,7 +161,7 @@ Without these steps, the app still builds and works locally, but iCloud sync won
 The **Clipboard** scheme includes two test targets:
 
 - **`ClipboardStoreTests`** (16 unit tests) covers storage: exact Unicode and multiline text, ordering, favorites, deduplication, concurrent writers, read-only access, backup and file-protection attributes, damaged data, and import from the previous JSON format.
-- **`ClipboardUITests`** drives the app, the system Settings app, and the real keyboard in the Simulator, with and without Full Access, in English and Spanish.
+- **`ClipboardUITests`** drives the app, the system Settings app, and the real keyboard in the Simulator, with and without Full Access, with English-only app text.
 
 Run the unit tests from the command line:
 
