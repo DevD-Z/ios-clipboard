@@ -41,6 +41,24 @@ If you changed identifiers, update them in all of these files:
 and update compatibility.** Changing the App Group moves the shared storage location,
 and changing the CloudKit container changes the sync database. Back up snippets first.
 
+## Why Saved Snippets do not appear in the keyboard
+
+The main app may save snippets to its private sandbox when the installed IPA
+has no valid App Group entitlement. The custom keyboard has a separate sandbox
+and cannot read those snippets automatically. The one-hour Temporary Clipboard
+preview uses the system clipboard and does **not** prove App Group sharing works.
+
+**Do not use the Unsigned Codemagic workflow to test keyboard Saved/Favorites.**
+Use the signed App Group workflow, with matching Apple Developer provisioning
+profiles for the main app and keyboard extension. Both must contain
+`group.com.iosclipboard.shared` and belong to the same Apple Developer team.
+The Codemagic signed workflow verifies both entitlements in the completed IPA.
+
+**Keep your existing snippets safe:** export a JSON backup from the app before
+uninstalling or changing bundle identifiers. When you install a properly signed
+version with the same bundle identifier, the app attempts to migrate local-only
+snippets to App Group storage. You can also restore a backup manually.
+
 ## Google Drive + App Group only (no iCloud)
 
 For a keyboard that can access saved snippets without iCloud, use the Codemagic

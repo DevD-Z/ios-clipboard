@@ -1,6 +1,6 @@
 workflows:
   ios-clipboard-unsigned:
-    name: iOS Clipboard - Unsigned IPA
+    name: iOS Clipboard - UNSIGNED (no keyboard Saved)
     instance_type: mac_mini_m2
     max_build_duration: 60
 
@@ -65,6 +65,8 @@ workflows:
       - name: Package unsigned IPA
         script: |
           set -euo pipefail
+          echo "UNSIGNED IPA: Saved Snippets cannot appear in the custom keyboard."
+          echo "Use Signed App Group and Google (No iCloud) with matching App Group profiles."
 
           APP="$CM_BUILD_DIR/build/DerivedData/Build/Products/Release-iphoneos/Clipboard.app"
           EXTENSION="$APP/PlugIns/ClipboardKeyboard.appex"

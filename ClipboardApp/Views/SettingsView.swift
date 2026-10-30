@@ -133,8 +133,10 @@ struct SettingsView: View {
             if model.isUsingLocalOnlyStorage {
                 Label("Local storage works on this iPhone", systemImage: "iphone")
                     .foregroundStyle(.secondary)
-                Text("To access these snippets from the keyboard, install a signed build with App Groups enabled for both targets.")
+                Text("Saved Snippets cannot reach the keyboard from an unsigned IPA. Use a build signed with the same App Group for both targets.")
                     .font(.footnote)
+                Link("How to fix keyboard sharing",
+                     destination: URL(string: "https://github.com/DevD-Z/ios-clipboard/blob/main/docs/ICLOUD_SETUP.md")!)
             }
 
             Label("Saved locally on this device", systemImage: "iphone")
