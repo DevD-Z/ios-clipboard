@@ -6,6 +6,8 @@ workflows:
 
     environment:
       xcode: 26.3
+      groups:
+        - google_oauth
       vars:
         XCODE_PROJECT: "iOSClipboard.xcodeproj"
         XCODE_SCHEME: "Clipboard"
@@ -97,6 +99,8 @@ workflows:
     # belong to your Apple Developer team; see docs/ICLOUD_SETUP.md.
     environment:
       xcode: 26.3
+      groups:
+        - google_oauth
       ios_signing:
         distribution_type: development
         bundle_identifier: com.iosclipboard.app
