@@ -231,6 +231,33 @@ final class ClipboardStoreTests: XCTestCase {
         XCTAssertEqual(try writer.load(), [existing])
     }
 
+    func testCloudReplicaMergesEditsAndDeletionMarkersWithoutResurrection() throws {
+        let writer = store()
+        let first = try writer.add(text: "synced")
+        let tombstone = ClipboardItem(id: first.id, text: "synced",
+            createdAt: first.createdAt, isFavorite: false,
+            modifiedAt: first.modifiedAt.addingTimeInterval(10), isDeleted: true)
+        XCTAssertEqual(try writer.mergeReplica([tombstone]), 1)
+        XCTAssertTrue(try writer.load().isEmpty)
+        XCTAssertEqual(try writer.mergeReplica([first]), 0)
+        XCTAssertEqual(try writer.replicaSnapshot().count, 1)
+        XCTAssertTrue(try writer.replicaSnapshot()[0].isDeleted)
+    }
+
+    func testLegacySnippetJSONDecodingDefaultsRevisionAndDeletion() throws {
+        let item = ClipboardItem(text: "legacy backup")
+        let object: [String: Any] = [
+            "id": item.id.uuidString,
+            "text": item.text,
+            "createdAt": item.createdAt.timeIntervalSinceReferenceDate,
+            "isFavorite": false
+        ]
+        let json = try JSONSerialization.data(withJSONObject: object)
+        let decoded = try JSONDecoder().decode(ClipboardItem.self, from: json)
+        XCTAssertFalse(decoded.isDeleted)
+        XCTAssertEqual(decoded.modifiedAt, decoded.createdAt)
+    }
+
     private func directorySnapshot() throws -> [String] {
         try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
             .map(\.lastPathComponent)

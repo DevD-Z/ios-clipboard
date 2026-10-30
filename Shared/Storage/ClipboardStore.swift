@@ -37,16 +37,21 @@ final class StoredClipboardItem {
     var text: String = ""
     var createdAt: Date = Date.now
     var isFavorite: Bool = false
+    var modifiedAt: Date = .now
+    var isDeleted: Bool = false
 
     init(item: ClipboardItem) {
         id = item.id
         text = item.text
         createdAt = item.createdAt
         isFavorite = item.isFavorite
+        modifiedAt = item.modifiedAt
+        isDeleted = item.isDeleted
     }
 
     var item: ClipboardItem {
-        ClipboardItem(id: id, text: text, createdAt: createdAt, isFavorite: isFavorite)
+        ClipboardItem(id: id, text: text, createdAt: createdAt, isFavorite: isFavorite,
+                      modifiedAt: modifiedAt, isDeleted: isDeleted)
     }
 }
 
@@ -147,7 +152,7 @@ final class ClipboardStore: @unchecked Sendable {
         }
         return try mutate { context, current in
             // Only consecutive duplicates collapse. Reusing an older snippet is intentional.
-            if let newest = current.map(\.item).newestFirst().first, newest.text == text { return newest }
+            if let newest = current.filter({ !$0.isDeleted }).map(\.item).newestFirst().first, newest.text == text { return newest }
             let item = ClipboardItem(text: text, createdAt: now)
             context.insert(StoredClipboardItem(item: item))
             return item
@@ -161,6 +166,7 @@ final class ClipboardStore: @unchecked Sendable {
         _ = try mutate { _, current in
             guard let model = current.first(where: { $0.id == id }) else { throw ClipboardStoreError.itemNotFound }
             model.text = text
+            model.modifiedAt = .now
             return ()
         }
     }
@@ -169,6 +175,7 @@ final class ClipboardStore: @unchecked Sendable {
         _ = try mutate { _, current in
             guard let model = current.first(where: { $0.id == id }) else { throw ClipboardStoreError.itemNotFound }
             model.isFavorite.toggle()
+            model.modifiedAt = .now
             return ()
         }
     }
@@ -195,8 +202,46 @@ final class ClipboardStore: @unchecked Sendable {
     func delete(id: UUID) throws {
         _ = try mutate { context, current in
             guard let model = current.first(where: { $0.id == id }) else { throw ClipboardStoreError.itemNotFound }
-            context.delete(model)
+            model.isDeleted = true
+            model.modifiedAt = .now
             return ()
+        }
+    }
+
+    /// Snapshot including deletion markers, required to prevent deleted items from returning
+    /// when two devices merge a Google Drive replica.
+    func replicaSnapshot() throws -> [ClipboardItem] {
+        if access == .readWrite {
+            try withWriterLock { try migrateLegacyIfNeeded(lockHeld: true) }
+        }
+        let container = try makeContainer(allowsSave: false)
+        return try fetchModels(in: ModelContext(container)).map(\.item)
+    }
+
+    @discardableResult
+    func mergeReplica(_ incoming: [ClipboardItem]) throws -> Int {
+        guard incoming.count <= 10_000,
+              Set(incoming.map(\.id)).count == incoming.count else {
+            throw ClipboardStoreError.corruptData
+        }
+        return try mutate { context, current in
+            let byID = Dictionary(uniqueKeysWithValues: current.map { ($0.id, $0) })
+            var changed = 0
+            for item in incoming {
+                if let existing = byID[item.id] {
+                    if item.modifiedAt > existing.modifiedAt {
+                        existing.text = item.text
+                        existing.isFavorite = item.isFavorite
+                        existing.isDeleted = item.isDeleted
+                        existing.modifiedAt = item.modifiedAt
+                        changed += 1
+                    }
+                } else {
+                    context.insert(StoredClipboardItem(item: item))
+                    changed += 1
+                }
+            }
+            return changed
         }
     }
 
@@ -320,7 +365,7 @@ final class ClipboardStore: @unchecked Sendable {
         let container = try makeContainer(allowsSave: allowsSave)
         let context = ModelContext(container)
         context.autosaveEnabled = false
-        return try fetchModels(in: context).map(\.item).newestFirst()
+        return try fetchModels(in: context).filter { !$0.isDeleted }.map(\.item).newestFirst()
     }
 
     private func fetchModels(in context: ModelContext) throws -> [StoredClipboardItem] {
